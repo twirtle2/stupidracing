@@ -50,6 +50,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       .mainnet({
         algod: {
           baseServer: env.algodUrl,
+          token: "",
         },
         isTestnet: false,
       })
