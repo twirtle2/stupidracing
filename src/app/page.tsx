@@ -81,86 +81,6 @@ export default function Home() {
   const activeWalletLabel = activeWallet?.metadata.name ?? "";
 
   useEffect(() => {
-    if (!activeAddress) {
-      setOwnedHorses([]);
-      setProfiles({});
-      return;
-    }
-
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const ownedRes = await fetch("/api/owned-horses", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address: activeAddress }),
-        });
-
-        if (!ownedRes.ok) {
-          throw new Error("Failed to load stable");
-        }
-
-        const ownedData = (await ownedRes.json()) as {
-          assets: OwnedHorse[];
-        };
-
-        setOwnedHorses(ownedData.assets ?? []);
-
-        const profilesRes = await fetch(
-          `/api/horse-profile?address=${activeAddress}&season=${SEASON}`
-        );
-
-        if (!profilesRes.ok) {
-          throw new Error("Failed to load profiles");
-        }
-
-        const profileData = (await profilesRes.json()) as {
-          profiles: HorseProfile[];
-        };
-
-        const byId: Record<number, HorseProfile> = {};
-        profileData.profiles.forEach((profile) => {
-          byId[profile.asset_id] = profile;
-        });
-        setProfiles(byId);
-
-        const teamRes = await fetch(
-          `/api/team-entry?address=${activeAddress}&season=${SEASON}`
-        );
-        if (teamRes.ok) {
-          const teamData = (await teamRes.json()) as {
-            entry: { asset_ids: number[] } | null;
-          };
-          if (teamData.entry?.asset_ids) {
-            setTeam(teamData.entry.asset_ids);
-            const loadedTeam = await loadTeamForAddress(activeAddress);
-            if (loadedTeam) {
-              setTeams((prev) => ({ ...prev, [activeAddress]: loadedTeam }));
-            }
-          }
-        }
-
-        const historyRes = await fetch(
-          `/api/race-results/get?address=${activeAddress}&season=${SEASON}`
-        );
-        if (historyRes.ok) {
-          const historyData = (await historyRes.json()) as {
-            results: MatchResult[];
-          };
-          setMatchHistory(historyData.results ?? []);
-        }
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [activeAddress, loadTeamForAddress]);
-
-  useEffect(() => {
     setDrafts((prev) => {
       const next = { ...prev };
       ownedHorses.forEach((horse) => {
@@ -269,6 +189,86 @@ export default function Home() {
     },
     [bracketSlots, loadTeamForAddress]
   );
+
+  useEffect(() => {
+    if (!activeAddress) {
+      setOwnedHorses([]);
+      setProfiles({});
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const ownedRes = await fetch("/api/owned-horses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: activeAddress }),
+        });
+
+        if (!ownedRes.ok) {
+          throw new Error("Failed to load stable");
+        }
+
+        const ownedData = (await ownedRes.json()) as {
+          assets: OwnedHorse[];
+        };
+
+        setOwnedHorses(ownedData.assets ?? []);
+
+        const profilesRes = await fetch(
+          `/api/horse-profile?address=${activeAddress}&season=${SEASON}`
+        );
+
+        if (!profilesRes.ok) {
+          throw new Error("Failed to load profiles");
+        }
+
+        const profileData = (await profilesRes.json()) as {
+          profiles: HorseProfile[];
+        };
+
+        const byId: Record<number, HorseProfile> = {};
+        profileData.profiles.forEach((profile) => {
+          byId[profile.asset_id] = profile;
+        });
+        setProfiles(byId);
+
+        const teamRes = await fetch(
+          `/api/team-entry?address=${activeAddress}&season=${SEASON}`
+        );
+        if (teamRes.ok) {
+          const teamData = (await teamRes.json()) as {
+            entry: { asset_ids: number[] } | null;
+          };
+          if (teamData.entry?.asset_ids) {
+            setTeam(teamData.entry.asset_ids);
+            const loadedTeam = await loadTeamForAddress(activeAddress);
+            if (loadedTeam) {
+              setTeams((prev) => ({ ...prev, [activeAddress]: loadedTeam }));
+            }
+          }
+        }
+
+        const historyRes = await fetch(
+          `/api/race-results/get?address=${activeAddress}&season=${SEASON}`
+        );
+        if (historyRes.ok) {
+          const historyData = (await historyRes.json()) as {
+            results: MatchResult[];
+          };
+          setMatchHistory(historyData.results ?? []);
+        }
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [activeAddress, loadTeamForAddress]);
 
   const setBracketSlotInput = (slotIndex: number, address: string) => {
     setBracketSlots((prev) => {
