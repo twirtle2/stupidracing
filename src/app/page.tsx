@@ -96,16 +96,6 @@ export default function Home() {
     });
   }, [ownedHorses, profiles]);
 
-  useEffect(() => {
-    if (!activeAddress) {
-      return;
-    }
-    if (bracketSlots[0]) {
-      return;
-    }
-    assignBracketAddress(0, activeAddress);
-  }, [activeAddress, bracketSlots, assignBracketAddress]);
-
   const teamAssets = useMemo(
     () => ownedHorses.filter((horse) => team.includes(horse.assetId)),
     [ownedHorses, team]
@@ -189,6 +179,16 @@ export default function Home() {
     },
     [bracketSlots, loadTeamForAddress]
   );
+
+  useEffect(() => {
+    if (!activeAddress) {
+      return;
+    }
+    if (bracketSlots[0]) {
+      return;
+    }
+    assignBracketAddress(0, activeAddress);
+  }, [activeAddress, bracketSlots, assignBracketAddress]);
 
   useEffect(() => {
     if (!activeAddress) {
