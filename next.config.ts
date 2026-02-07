@@ -14,6 +14,17 @@ const nextConfig: NextConfig = {
         hostname: "ipfs.algonode.xyz",
         pathname: "/ipfs/**",
       },
+      {
+        protocol: "https",
+        hostname: "gateway.pinata.cloud",
+        pathname: "/ipfs/**",
+      },
+      {
+        protocol: "https",
+        hostname: "storage.googleapis.com",
+        pathname: "/**",
+      },
+
 
     ],
   },
