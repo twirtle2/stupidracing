@@ -11,9 +11,11 @@ export async function fetchAccountAssets(address: string) {
   let nextToken: string | undefined;
 
   do {
+    const baseUrl = env.indexerUrl || "http://localhost";
     const url = new URL(
-      `${env.indexerUrl.replace(/\/$/, "")}/v2/accounts/${address}/assets`
+      `${baseUrl.replace(/\/$/, "")}/v2/accounts/${address}/assets`
     );
+
     url.searchParams.set("limit", "1000");
     if (nextToken) {
       url.searchParams.set("next", nextToken);
@@ -52,7 +54,9 @@ export async function fetchCreatorAssets(creator: string) {
   let nextToken: string | undefined;
 
   do {
-    const url = new URL(`${env.indexerUrl.replace(/\/$/, "")}/v2/assets`);
+    const baseUrl = env.indexerUrl || "http://localhost";
+    const url = new URL(`${baseUrl.replace(/\/$/, "")}/v2/assets`);
+
     url.searchParams.set("creator", creator);
     url.searchParams.set("limit", "1000");
     if (nextToken) {
@@ -100,8 +104,10 @@ function decodeArc69(note?: string) {
 }
 
 export async function fetchArc69Metadata(assetId: number) {
-  const url = new URL(`${env.indexerUrl.replace(/\/$/, "")}/v2/transactions`);
+  const baseUrl = env.indexerUrl || "http://localhost";
+  const url = new URL(`${baseUrl.replace(/\/$/, "")}/v2/transactions`);
   url.searchParams.set("asset-id", String(assetId));
+
   url.searchParams.set("tx-type", "acfg");
   url.searchParams.set("limit", "25");
 

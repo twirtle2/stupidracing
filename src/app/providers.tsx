@@ -49,9 +49,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const networks = new NetworkConfigBuilder()
       .mainnet({
         algod: {
-          baseServer: env.algodUrl,
+          baseServer: env.algodUrl || "http://localhost",
           token: "",
         },
+
         isTestnet: false,
       })
       .build();
