@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
+
 import { fetchArc69Metadata, fetchCreatorAssets } from "@/lib/indexer";
 import { STUPIDHORSE_CREATORS } from "@/lib/stupidhorse";
 
@@ -40,11 +42,11 @@ export async function POST(req: Request) {
 
     const withMetadata = body.includeMetadata
       ? await Promise.all(
-          assets.map(async (asset) => ({
-            ...asset,
-            metadata: await fetchArc69Metadata(asset.assetId),
-          }))
-        )
+        assets.map(async (asset) => ({
+          ...asset,
+          metadata: await fetchArc69Metadata(asset.assetId),
+        }))
+      )
       : assets;
 
     return NextResponse.json({ assets: withMetadata });
