@@ -103,7 +103,14 @@ export const STUPIDHORSE_ASSETS: StupidHorseAsset[] = [
     unitName: "HORSE015",
     imageUrl: "https://ipfs.io/ipfs/bafkreidyohxaivqb4u5z7oul2tsvzelaqpk6kensk3jwtywvn2bqfcbt4m",
   },
+  {
+    assetId: 2191763172,
+    name: "2tinyhorse 2193",
+    unitName: "2INY2193",
+    imageUrl: "https://ipfs.algonode.xyz/ipfs/bafybeicm6v7hhp2q7y2lyv5mmsz7jtxz6j7j7j7j7j7j7j7j7j7j7j7j7j", // Placeholder, will be resolved by resolver
+  },
 ];
+
 
 export const STUPIDHORSE_ASSET_ID_SET = new Set(
   STUPIDHORSE_ASSETS.map((asset) => asset.assetId)

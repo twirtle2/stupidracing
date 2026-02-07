@@ -29,10 +29,14 @@ export async function POST(req: Request) {
       const name = asset.params.name ?? "";
       const total = asset.params.total ?? 0;
       return (
-        /^HORSE\\d+$/i.test(unit) ||
-        /^STUPIDHORSE\\s*\\d+/i.test(name) ||
-        (unit.toUpperCase().startsWith("HORSE") && total === 1)
+        /^HORSE\d+$/i.test(unit) ||
+        /^STUPIDHORSE\s*\d+/i.test(name) ||
+        /^2INY\d+$/i.test(unit) ||
+        /^2(tiny|iny)horse\s*\d+/i.test(name) ||
+        (unit.toUpperCase().startsWith("HORSE") && total === 1) ||
+        (unit.toUpperCase().startsWith("2INY") && total === 1)
       );
+
     });
 
     const horseMap = new Map(
