@@ -603,8 +603,8 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="rounded-2xl border border-white/10 bg-black/60 px-4 py-2">
-                <p className="text-xs uppercase tracking-[0.4em] text-[var(--muted)]">
-                  Mainnet Season {SEASON}
+                <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
+                  Championship
                 </p>
                 <h1 className="text-3xl leading-none md:text-4xl">
                   StupidHorse Racing
@@ -726,30 +726,40 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative">
-                  <input
-                    className="w-64 rounded-full border border-white/10 bg-black/60 px-5 py-2.5 text-sm text-white focus:border-[var(--accent)]/50 focus:outline-none transition-all"
-                    placeholder="Test with another address..."
-                    value={stableAddressOverride}
-                    onChange={(event) => setStableAddressOverride(event.target.value)}
-                  />
-                </div>
-                {stableAddressOverride && (
+              {isAdmin && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <input
+                      className="w-64 rounded-full border border-white/10 bg-black/60 px-5 py-3 text-xs text-white placeholder:text-white/20 focus:border-[var(--accent)]/50 focus:outline-none transition-all"
+                      placeholder="Test with another address..."
+                      value={stableAddressOverride}
+                      onChange={(e) => setStableAddressOverride(e.target.value)}
+                    />
+                    {stableAddressOverride && (
+                      <button
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white"
+                        onClick={() => setStableAddressOverride("")}
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                   <button
-                    className="rounded-full bg-white/10 px-4 py-2.5 text-sm text-white hover:bg-white/20 transition-colors"
-                    onClick={() => setStableAddressOverride("")}
+                    className="group flex items-center gap-2 rounded-full border border-[var(--accent)]/30 px-6 py-3 text-sm font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all"
+                    onClick={() => {
+                      window.location.reload();
+                    }}
+
                   >
-                    Reset to Me
+                    <svg className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh Stable
                   </button>
-                )}
-                <button
-                  className="rounded-full border border-[var(--accent)]/30 px-5 py-2.5 text-sm text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
-                  onClick={() => window.location.reload()}
-                >
-                  Refresh Stable
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">

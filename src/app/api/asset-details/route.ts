@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 
 import { fetchArc69Metadata, fetchCreatorAssets } from "@/lib/indexer";
 import { STUPIDHORSE_CREATORS } from "@/lib/stupidhorse";
+import { resolveIpfsUrl } from "@/lib/ipfs";
+
 
 export async function POST(req: Request) {
   const body = (await req.json()) as {
@@ -31,7 +33,8 @@ export async function POST(req: Request) {
             assetId: asset.index,
             name: asset.params.name ?? `Horse ${asset.index}`,
             unitName: asset.params["unit-name"] ?? "",
-            imageUrl: asset.params.url ?? "",
+            imageUrl: resolveIpfsUrl(asset.params.url),
+
           },
         ])
     );
