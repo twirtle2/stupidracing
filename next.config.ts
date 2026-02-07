@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
         hostname: "ipfs.io",
         pathname: "/ipfs/**",
       },
+      {
+        protocol: "https",
+        hostname: "ipfs.algonode.xyz",
+        pathname: "/ipfs/**",
+      },
+
     ],
   },
   webpack: (config) => {
