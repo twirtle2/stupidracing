@@ -10,12 +10,13 @@ export async function fetchNfdForAddresses(addresses: string[]) {
   const chunkSize = 20;
   for (let i = 0; i < unique.length; i += chunkSize) {
     const chunk = unique.slice(i, i + chunkSize);
-    const params = new URLSearchParams({
-      address: chunk.join(","),
-      view: "tiny",
-    });
+    const params = new URLSearchParams();
+    chunk.forEach((addr: string) => params.append("address", addr));
+    params.set("view", "tiny");
+
     try {
-      const res = await fetch(`https://api.nf.domains/nfd/lookup?${params}`);
+      const res = await fetch(`https://api.nf.domains/nfd/lookup?${params.toString()}`);
+
       if (!res.ok) {
         continue;
       }

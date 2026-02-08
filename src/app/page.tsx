@@ -1208,15 +1208,17 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="mt-8 space-y-6 relative">
+              <div className="mt-8 space-y-6 relative min-h-[400px]">
                 {isPopulating && (
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-black/60 backdrop-blur-sm">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
-                    <p className="mt-4 text-xs font-bold uppercase tracking-widest text-[var(--accent)] animate-pulse">
+                  <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center rounded-2xl bg-black/80 backdrop-blur-md">
+                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
+                    <p className="mt-4 text-sm font-bold uppercase tracking-[0.4em] text-[var(--accent)] animate-pulse">
                       loading...
                     </p>
                   </div>
                 )}
+
+
 
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-6">
                   <h3 className="text-xl font-bold uppercase tracking-tight mb-4">Assign Slots</h3>
