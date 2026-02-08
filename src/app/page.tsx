@@ -774,41 +774,36 @@ export default function Home() {
     <main className="min-h-screen px-6 py-10 lg:px-12">
 
       <section className="mx-auto flex max-w-6xl flex-col gap-10">
-        <header className="sticky top-4 z-20 rounded-3xl border border-white/10 bg-black/40 px-6 py-4 backdrop-blur">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-grow overflow-hidden">
-              <div className="rounded-2xl border border-white/10 bg-black/60 px-4 py-2 flex-shrink-0">
-                <h1 className="text-3xl leading-none md:text-4xl">
-                  StupidHorse Racing
-                </h1>
-              </div>
-
-              <p className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-[var(--muted)] opacity-80 max-w-[200px] leading-tight flex-shrink">
+        <header className="sticky top-4 z-20 rounded-3xl border border-white/10 bg-black/50 px-8 py-5 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-black uppercase tracking-tighter md:text-3xl bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+                StupidHorse Racing
+              </h1>
+              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.35em] text-[var(--muted)] opacity-70">
                 You can lead a horse to water, but you can’t stop it from jumping off the cliff.
               </p>
-
-
-
-              <nav className="flex items-center gap-6 ml-4">
-                <button
-                  onClick={() => setView("stable")}
-                  className={`text-sm uppercase tracking-widest transition-colors ${view === "stable" ? "text-[var(--accent)] font-bold" : "text-[var(--muted)] hover:text-white"
-                    }`}
-                >
-                  Your Stable
-                </button>
-                <button
-                  onClick={() => setView("bracket")}
-                  className={`text-sm uppercase tracking-widest transition-colors ${view === "bracket" ? "text-[var(--accent)] font-bold" : "text-[var(--muted)] hover:text-white"
-                    }`}
-                >
-                  Tournament Bracket
-                </button>
-              </nav>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+            <nav className="flex items-center gap-8">
+              <button
+                onClick={() => setView("stable")}
+                className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${view === "stable" ? "text-[var(--accent)] scale-110" : "text-[var(--muted)] hover:text-white"
+                  }`}
+              >
+                Your Stable
+              </button>
+              <button
+                onClick={() => setView("bracket")}
+                className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${view === "bracket" ? "text-[var(--accent)] scale-110" : "text-[var(--muted)] hover:text-white"
+                  }`}
+              >
+                Tournament Bracket
+              </button>
+            </nav>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                 <span>User</span>
                 <label className="relative inline-flex cursor-pointer items-center">
                   <input
@@ -817,63 +812,63 @@ export default function Home() {
                     checked={isAdmin}
                     onChange={(event) => setIsAdmin(event.target.checked)}
                   />
-                  <div className="h-5 w-9 rounded-full bg-white/20 peer-checked:bg-[var(--accent)]" />
-                  <div className="absolute left-1 top-1 h-3 w-3 rounded-full bg-white transition peer-checked:translate-x-4" />
+                  <div className="h-5 w-10 rounded-full bg-white/10 ring-1 ring-white/10 transition-colors peer-checked:bg-[var(--accent)]" />
+                  <div className="absolute left-1 top-1 h-3 w-3 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
                 </label>
                 <span>Admin</span>
               </div>
-              <div className="relative">
-                <button
-                  className={`rounded-full border px-4 py-2 text-sm transition-all duration-200 ${activeAddress
-                    ? "border-[var(--accent)]/40 bg-[var(--accent)]/5 text-[var(--accent)]"
-                    : "border-white/20 text-white hover:border-white"
-                    }`}
-                  onClick={() => setConnectOpen((prev) => !prev)}
-                >
-                  {activeAddress ? displayAddress(activeAddress) : "Connect Wallet"}
-                </button>
-                {connectOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-white/10 bg-black/95 p-2 shadow-2xl z-50 transition-all">
-                    <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--muted)] mb-1">
-                      Choose Wallet
-                    </p>
-                    {wallets.map((wallet) => (
-                      <button
-                        key={wallet.walletKey}
-                        className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                        onClick={() => {
-                          setConnectOpen(false);
-                          if (wallet.isConnected) {
-                            wallet.disconnect();
-                          } else {
-                            wallet.connect();
-                          }
 
-                        }}
-                      >
-                        <div className="flex items-center gap-2">
-                          {wallet.metadata.icon ? (
-                            <Image
-                              src={wallet.metadata.icon}
-                              alt={wallet.metadata.name}
-                              width={20}
-                              height={20}
-                              className="rounded-sm"
-                            />
-                          ) : (
-                            <div className="h-5 w-5 rounded-full bg-white/20" />
-                          )}
-                          <span>{wallet.metadata.name}</span>
-                        </div>
-                        {wallet.metadata.name === displayAddress(activeAddress) && (
-                          <div className="h-2 w-2 rounded-full bg-[var(--accent-2)]" />
+              <button
+                className={`rounded-full border px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeAddress
+                  ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/20"
+                  : "border-white/10 bg-white/5 text-white hover:border-white/40 hover:bg-white/10"
+                  }`}
+                onClick={() => setConnectOpen((prev) => !prev)}
+              >
+                {activeAddress ? displayAddress(activeAddress) : "Connect Wallet"}
+              </button>
+
+              {connectOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-white/10 bg-black/95 p-2 shadow-2xl z-50 transition-all">
+                  <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--muted)] mb-1">
+                    Choose Wallet
+                  </p>
+                  {wallets.map((wallet) => (
+                    <button
+                      key={wallet.walletKey}
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                      onClick={() => {
+                        setConnectOpen(false);
+                        if (wallet.isConnected) {
+                          wallet.disconnect();
+                        } else {
+                          wallet.connect();
+                        }
+
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {wallet.metadata.icon ? (
+                          <Image
+                            src={wallet.metadata.icon}
+                            alt={wallet.metadata.name}
+                            width={20}
+                            height={20}
+                            className="rounded-sm"
+                          />
+                        ) : (
+                          <div className="h-5 w-5 rounded-full bg-white/20" />
                         )}
+                        <span>{wallet.metadata.name}</span>
+                      </div>
+                      {wallet.metadata.name === displayAddress(activeAddress) && (
+                        <div className="h-2 w-2 rounded-full bg-[var(--accent-2)]" />
+                      )}
 
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -1060,113 +1055,36 @@ export default function Home() {
 
         {view === "bracket" && (
           <div className="space-y-10">
-            <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-
-              <div className="rounded-3xl border border-white/10 bg-black/40 p-6">
-                <h2 className="text-2xl">Tournament Team</h2>
-                <p className="text-sm text-[var(--muted)]">
-                  Select exactly 5 horses for this season’s bracket.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {teamAssets.map((horse) => (
-                    <span
-                      key={horse.assetId}
-                      className="rounded-full border border-[var(--accent-2)]/60 px-3 py-1 text-xs text-[var(--accent-2)]"
+            <section className={`grid gap-6 ${isAdmin ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_1fr]"}`}>
+              {!isAdmin && (
+                <div className="rounded-3xl border border-white/10 bg-black/40 p-6">
+                  <h2 className="text-2xl">Tournament Team</h2>
+                  <p className="text-sm text-[var(--muted)]">
+                    Select exactly 5 horses for this season’s bracket.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {teamAssets.map((horse) => (
+                      <span
+                        key={horse.assetId}
+                        className="rounded-full border border-[var(--accent-2)]/60 px-3 py-1 text-xs text-[var(--accent-2)]"
+                      >
+                        {horse.name}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-6 flex items-center gap-3">
+                    <button
+                      className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black"
+                      onClick={saveTeam}
                     >
-                      {horse.name}
+                      Lock In Team
+                    </button>
+                    <span className="text-sm text-[var(--muted)]">
+                      {team.length}/5 selected
                     </span>
-                  ))}
+                  </div>
                 </div>
-                <div className="mt-6 flex items-center gap-3">
-                  <button
-                    className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black"
-                    onClick={saveTeam}
-                  >
-                    Lock In Team
-                  </button>
-                  <span className="text-sm text-[var(--muted)]">
-                    {team.length}/5 selected
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-black/40 p-6">
-                <h2 className="text-2xl">Match Simulator</h2>
-                <p className="text-sm text-[var(--muted)]">
-                  Best-of-5, but all 5 heats run. Ties count as draws and move on.
-                </p>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <select
-                    className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm"
-                    value={matchLeftSlot ?? ""}
-                    onChange={(event) => {
-                      const value = event.target.value
-                        ? Number(event.target.value)
-                        : null;
-                      setMatchLeftSlot(value);
-                    }}
-                  >
-                    <option value="">Left slot</option>
-                    {bracketSlots.map((slot, index) => (
-                      <option key={`left-slot-${index}`} value={index}>
-                        Slot {index + 1} {slot ? `(${displayAddress(slot)})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm"
-                    value={matchRightSlot ?? ""}
-                    onChange={(event) => {
-                      const value = event.target.value
-                        ? Number(event.target.value)
-                        : null;
-                      setMatchRightSlot(value);
-                    }}
-                  >
-                    <option value="">Right slot</option>
-                    {bracketSlots.map((slot, index) => (
-                      <option key={`right-slot-${index}`} value={index}>
-                        Slot {index + 1} {slot ? `(${displayAddress(slot)})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black"
-                    onClick={runMatch}
-                  >
-                    Run Match
-                  </button>
-                  <button
-                    className="rounded-full border border-white/20 px-4 py-2 text-sm text-white"
-                    onClick={resetMatch}
-                  >
-                    Reset
-                  </button>
-                  <span className="text-sm text-[var(--muted)]">
-                    {matchStatus === "ready" ? "Awaiting match" : matchStatus}
-                  </span>
-                </div>
-
-                <div className="mt-4 text-xs text-[var(--muted)]">
-                  Score: Left {matchScore.left} — Right {matchScore.right}
-                </div>
-
-                <div className="mt-4 max-h-40 overflow-auto rounded-xl border border-white/10 bg-black/40 p-3 text-xs">
-                  {heatLog.length === 0 && (
-                    <p className="text-[var(--muted)]">No heats yet.</p>
-                  )}
-                  {heatLog.map((entry, index) => (
-                    <div key={index} className="flex justify-between">
-                      <span>Heat {index + 1}</span>
-                      <span className="text-[var(--accent)]">{entry.status}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
             </section>
 
             <section
@@ -1245,7 +1163,7 @@ export default function Home() {
                             onBlur={(event) => assignBracketAddress(slot.slotIndex, event.target.value)}
                           />
                         ) : (
-                          <div className="mt-3 truncate font-mono text-[10px] text-white">
+                          <div className="mt-3 font-mono text-[10px] text-white whitespace-nowrap overflow-x-auto no-scrollbar">
                             {slot.address ? displayAddress(slot.address) : "Empty"}
                           </div>
                         )}
@@ -1299,7 +1217,7 @@ export default function Home() {
                                   className={`bracket-match border shadow-xl group hover:border-[var(--accent)]/30 transition-all duration-300 relative ${result ? "border-white/20 bg-black/80" : "border-white/10 bg-black/60"}`}
                                 >
                                   <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${result?.winnerAddress === addressA ? "bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/20" : addressA ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
-                                    <span className="truncate max-w-[120px]">
+                                    <span className="font-mono whitespace-nowrap overflow-x-auto no-scrollbar max-w-[180px]">
                                       {addressA ? displayAddress(addressA) : "-"}
                                     </span>
                                     <span className="font-mono">{result?.score.left ?? 0}</span>
@@ -1320,7 +1238,7 @@ export default function Home() {
                                     <div className="h-[1px] flex-grow bg-white/5" />
                                   </div>
                                   <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${result?.winnerAddress === addressB ? "bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/20" : addressB ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
-                                    <span className="truncate max-w-[120px]">
+                                    <span className="font-mono whitespace-nowrap overflow-x-auto no-scrollbar max-w-[180px]">
                                       {addressB ? displayAddress(addressB) : "-"}
                                     </span>
                                     <span className="font-mono">{result?.score.right ?? 0}</span>
