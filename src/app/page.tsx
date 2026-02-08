@@ -95,6 +95,8 @@ export default function Home() {
   const [bracketResults, setBracketResults] = useState<Record<string, BracketMatchResult>>({});
   const [simulatingMatch, setSimulatingMatch] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isPopulating, setIsPopulating] = useState(false);
+
 
 
 
@@ -175,8 +177,9 @@ export default function Home() {
     if (!isAdmin) {
       return;
     }
-    setLoading(true);
+    setIsPopulating(true);
     try {
+
       const res = await fetch(`/api/eligible-accounts?limit=${bracketSize}`);
       if (!res.ok) {
         throw new Error("Failed to query eligible accounts");
@@ -225,7 +228,7 @@ export default function Home() {
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setLoading(false);
+      setIsPopulating(false);
     }
   };
 
@@ -679,29 +682,39 @@ export default function Home() {
       let leftWins = 0;
       let rightWins = 0;
 
-      const horseCount = Math.min(teamA.horses.length, teamB.horses.length, 5);
-      if (horseCount === 0) {
-        setError("One or both teams have no horses eligible for the match.");
-        return;
-      }
-
-      for (let i = 0; i < horseCount; i++) {
-        const hA = teamA.horses[i];
-        const hB = teamB.horses[i];
+      // Run exactly 5 heats to determine Best of 5 winner
+      // If we don't have enough horses, we use index modulo
+      for (let i = 0; i < 5; i++) {
+        const hA = teamA.horses[i % teamA.horses.length];
+        const hB = teamB.horses[i % teamB.horses.length];
         const heat = runHeat();
         logs.push({
           left: heat.left,
           right: heat.right,
           leftRoll: 0,
           rightRoll: 0,
-          status: `${hA?.name || "Left"} vs ${hB?.name || "Right"}: ${heat.status}`
+          status: `Heat ${i + 1}: ${hA?.name || "Left"} vs ${hB?.name || "Right"}: ${heat.status}`
         });
         if (heat.status === "left wins") leftWins++;
         else if (heat.status === "right wins") rightWins++;
       }
 
+      // Tie breaker if draws caused a deadlock
+      let safety = 0;
+      while (leftWins === rightWins && safety < 10) {
+        const heat = runHeat();
+        if (heat.status === "left wins") leftWins++;
+        else if (heat.status === "right wins") rightWins++;
+        safety++;
+      }
 
-      const winnerAddress = leftWins === rightWins ? null : (leftWins > rightWins ? addressA : addressB);
+      // Fallback tie breaker
+      if (leftWins === rightWins) {
+        if (Math.random() > 0.5) leftWins++;
+        else rightWins++;
+      }
+
+      const winnerAddress = leftWins > rightWins ? addressA : addressB;
 
       setBracketResults(prev => ({
         ...prev,
@@ -719,19 +732,18 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             season: SEASON,
-            wallet_address: addressA,
-            team_asset_ids: teamA.assetIds,
-            match_id: matchId,
-            log: {
-              opponent_address: addressB,
-              opponent_asset_ids: teamB.assetIds,
-              winner_address: winnerAddress,
-              heats: logs
-            }
+            walletAddress: addressA,
+            teamAssetIds: teamA.assetIds,
+            opponentAddress: addressB,
+            opponentAssetIds: teamB.assetIds,
+            winnerAddress: winnerAddress,
+            matchId: matchId,
+            log: logs // API saves logs into the heats field
           }),
         });
         setRefreshTrigger(prev => prev + 1);
       }
+
     } catch (err) {
       setError(`Simulation error: ${(err as Error).message}`);
     } finally {
@@ -760,16 +772,18 @@ export default function Home() {
 
       <section className="mx-auto flex max-w-6xl flex-col gap-10">
         <header className="sticky top-4 z-20 rounded-3xl border border-white/10 bg-black/40 px-6 py-4 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="rounded-2xl border border-white/10 bg-black/60 px-4 py-2">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 flex-grow overflow-hidden">
+              <div className="rounded-2xl border border-white/10 bg-black/60 px-4 py-2 flex-shrink-0">
                 <h1 className="text-3xl leading-none md:text-4xl">
                   StupidHorse Racing
                 </h1>
-                <p className="mt-1 text-xs font-medium italic tracking-wide text-[var(--muted)] opacity-80">
-                  You can lead a horse to water, but you can’t stop it from jumping off the cliff.
-                </p>
               </div>
+
+              <p className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-[var(--muted)] opacity-80 max-w-[200px] leading-tight flex-shrink">
+                You can lead a horse to water, but you can’t stop it from jumping off the cliff.
+              </p>
+
 
 
               <nav className="flex items-center gap-6 ml-4">
@@ -1194,16 +1208,16 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Slots Section */}
               <div className="mt-8 space-y-6 relative">
-                {loading && (
+                {isPopulating && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-black/60 backdrop-blur-sm">
                     <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
                     <p className="mt-4 text-xs font-bold uppercase tracking-widest text-[var(--accent)] animate-pulse">
-                      Finding eligible horses...
+                      loading...
                     </p>
                   </div>
                 )}
+
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-6">
                   <h3 className="text-xl font-bold uppercase tracking-tight mb-4">Assign Slots</h3>
 
