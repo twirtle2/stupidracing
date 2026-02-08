@@ -370,9 +370,11 @@ export default function Home() {
           }
         }
 
-        const historyRes = await fetch(
-          `/api/race-results/get?address=${stableAddress}&season=${SEASON}`
-        );
+        const historyUrl = view === "bracket"
+          ? `/api/race-results/get?season=${SEASON}`
+          : `/api/race-results/get?address=${stableAddress}&season=${SEASON}`;
+
+        const historyRes = await fetch(historyUrl);
         if (historyRes.ok) {
           const historyData = (await historyRes.json()) as {
             results: MatchResult[];
@@ -387,7 +389,8 @@ export default function Home() {
     };
 
     fetchData();
-  }, [stableAddress, activeAddress, loadTeamForAddress, refreshTrigger]);
+  }, [stableAddress, activeAddress, loadTeamForAddress, refreshTrigger, view]);
+
 
   const setBracketSlotInput = (slotIndex: number, address: string) => {
     setBracketSlots((prev) => {
@@ -1342,16 +1345,15 @@ export default function Home() {
 
             <section className="rounded-3xl border border-white/10 bg-black/40 p-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl">Match History</h2>
+                <h2 className="text-2xl">{view === "bracket" ? "Tournament History" : "Your History"}</h2>
                 <button
                   className="rounded-full border border-white/20 px-4 py-2 text-sm text-white"
                   onClick={async () => {
-                    if (!stableAddress) {
-                      return;
-                    }
-                    const historyRes = await fetch(
-                      `/api/race-results/get?address=${stableAddress}&season=${SEASON}`
-                    );
+                    const historyUrl = view === "bracket"
+                      ? `/api/race-results/get?season=${SEASON}`
+                      : `/api/race-results/get?address=${stableAddress}&season=${SEASON}`;
+
+                    const historyRes = await fetch(historyUrl);
                     if (historyRes.ok) {
                       const historyData = (await historyRes.json()) as {
                         results: MatchResult[];
