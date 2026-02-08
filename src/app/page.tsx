@@ -96,6 +96,8 @@ export default function Home() {
   const [simulatingMatch, setSimulatingMatch] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isPopulating, setIsPopulating] = useState(false);
+  const [bracketTab, setBracketTab] = useState<"assign" | "bracket" | "history">("assign");
+
 
 
 
@@ -1089,43 +1091,68 @@ export default function Home() {
 
             <section
               id="bracket"
-              className="rounded-3xl border border-white/10 bg-black/40 p-6"
+              className="rounded-3xl border border-white/10 bg-black/40 p-8"
             >
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl">Tournament Bracket</h2>
-                  <p className="text-sm text-[var(--muted)]">
-                    Start with 8 slots, scale to 16 or 32. One team per owner.
+              <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Tournament Hub</h2>
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--muted)]">
+                    Season {SEASON} • {bracketSize} Teams • One Champion
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  {isAdmin && (
+
+                <div className="flex border-b border-white/5">
+                  {[
+                    { id: "assign", label: "1. Assign" },
+                    { id: "bracket", label: "2. Bracket" },
+                    { id: "history", label: "3. History" }
+                  ].map((tab) => (
                     <button
-                      className="rounded-full border border-[var(--accent)]/60 px-4 py-2 text-sm text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
-                      onClick={autoPopulateBracket}
+                      key={tab.id}
+                      onClick={() => setBracketTab(tab.id as any)}
+                      className={`px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${bracketTab === tab.id
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--muted)] hover:text-white"
+                        }`}
                     >
-                      Auto-Populate
+                      {tab.label}
+                      {bracketTab === tab.id && (
+                        <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-[var(--accent)] shadow-[0_0_15px_var(--accent)]" />
+                      )}
                     </button>
-                  )}
-                  <select
-                    className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm text-white focus:outline-none focus:border-[var(--accent)]/50"
-                    value={bracketSize}
-                    onChange={(event) => {
-                      const next = Number(event.target.value) as 8 | 16 | 32;
-                      setBracketSize(next);
-                      setBracketSlots(Array(next).fill(""));
-                    }}
-                  >
-                    <option value={8}>8 Slots</option>
-                    <option value={16}>16 Slots</option>
-                    <option value={32}>32 Slots</option>
-                  </select>
-                  <button
-                    className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10"
-                    onClick={clearBracket}
-                  >
-                    Clear All
-                  </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    {isAdmin && (
+                      <button
+                        className="rounded-full border border-[var(--accent)]/60 px-4 py-2 text-sm text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
+                        onClick={autoPopulateBracket}
+                      >
+                        Auto-Populate
+                      </button>
+                    )}
+                    <select
+                      className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm text-white focus:outline-none focus:border-[var(--accent)]/50"
+                      value={bracketSize}
+                      onChange={(event) => {
+                        const next = Number(event.target.value) as 8 | 16 | 32;
+                        setBracketSize(next);
+                        setBracketSlots(Array(next).fill(""));
+                      }}
+                    >
+                      <option value={8}>8 Slots</option>
+                      <option value={16}>16 Slots</option>
+                      <option value={32}>32 Slots</option>
+                    </select>
+                    <button
+                      className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10"
+                      onClick={clearBracket}
+                    >
+                      Clear All
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1141,191 +1168,230 @@ export default function Home() {
 
 
 
-                <div className="rounded-2xl border border-white/10 bg-black/30 p-6">
-                  <h3 className="text-xl font-bold uppercase tracking-tight mb-4">Assign Slots</h3>
+                {bracketTab === "assign" && (
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-8 shadow-inner animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between mb-8">
+                      <h3 className="text-xl font-bold uppercase tracking-tight">Assign Entrants</h3>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)] bg-white/5 px-3 py-1 rounded-full">
+                        {bracketSlots.filter(s => s).length} / {bracketSize} Slots Filled
+                      </div>
+                    </div>
 
-                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
-                    {bracketSlotsArray.map((slot) => (
-                      <div
-                        key={`slot-${slot.slotIndex}`}
-                        className={`rounded-2xl border transition-all duration-200 ${slot.address ? "border-[var(--accent)]/30 bg-[var(--accent)]/5" : "border-white/5 bg-black/30"
-                          } p-4`}
-                      >
-                        <div className="text-[10px] uppercase font-bold tracking-[0.2em] text-[var(--muted)]">
-                          Slot {slot.slotIndex + 1}
-                        </div>
-                        {isAdmin ? (
-                          <input
-                            className="mt-3 w-full rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 text-[10px] text-white focus:border-[var(--accent)]/50 focus:outline-none"
-                            placeholder="Address"
-                            value={slot.address ?? ""}
-                            onChange={(event) => setBracketSlotInput(slot.slotIndex, event.target.value)}
-                            onBlur={(event) => assignBracketAddress(slot.slotIndex, event.target.value)}
-                          />
-                        ) : (
-                          <div className="mt-3 font-mono text-[10px] text-white whitespace-nowrap overflow-x-auto no-scrollbar">
-                            {slot.address ? displayAddress(slot.address) : "Empty"}
+                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {bracketSlotsArray.map((slot) => (
+                        <div
+                          key={`slot-${slot.slotIndex}`}
+                          className={`group rounded-2xl border transition-all duration-300 ${slot.address ? "border-[var(--accent)]/40 bg-[var(--accent)]/5 ring-1 ring-[var(--accent)]/10" : "border-white/5 bg-black/30 hover:bg-black/40"
+                            } p-5`}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="text-[10px] uppercase font-black tracking-[0.3em] text-[var(--muted)]">
+                              Slot {slot.slotIndex + 1}
+                            </div>
+                            {slot.teamEntry && (
+                              <div className="h-2 w-2 rounded-full bg-[var(--accent)] animate-pulse shadow-[0_0_8px_var(--accent)]" />
+                            )}
                           </div>
-                        )}
-                        <div className="mt-3">
-                          {slot.teamEntry ? (
-                            <div className="flex -space-x-2 overflow-hidden">
-                              {slot.teamEntry.horses.slice(0, 3).map((horse, i) => (
-                                <div key={i} className="inline-block h-6 w-6 rounded-full border-2 border-black bg-black/40 ring-1 ring-white/10 overflow-hidden">
-                                  <Image src={horse.imageUrl} alt={horse.name} width={24} height={24} className="object-cover" />
-                                </div>
-                              ))}
-                              {slot.teamEntry.horses.length > 3 && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-black bg-white/10 text-[8px] font-bold text-white ring-1 ring-white/10">
-                                  +{slot.teamEntry.horses.length - 3}
-                                </div>
-                              )}
+
+                          {isAdmin ? (
+                            <div className="space-y-2">
+                              <input
+                                className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-[10px] font-mono text-white placeholder:text-white/20 focus:border-[var(--accent)]/50 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/20 transition-all"
+                                placeholder="Owner Address"
+                                value={slot.address ?? ""}
+                                onChange={(event) => setBracketSlotInput(slot.slotIndex, event.target.value)}
+                                onBlur={(event) => assignBracketAddress(slot.slotIndex, event.target.value)}
+                              />
                             </div>
                           ) : (
-                            <div className="h-6 w-6 rounded-full border border-dashed border-white/10 flex items-center justify-center text-[8px] text-[var(--muted)]">
-                              ?
+                            <div className="font-mono text-[10px] text-white whitespace-nowrap overflow-x-auto no-scrollbar py-1">
+                              {slot.address ? displayAddress(slot.address) : <span className="text-[var(--muted)]">Available</span>}
                             </div>
                           )}
+
+                          <div className="mt-5 pt-5 border-t border-white/5">
+                            {slot.teamEntry ? (
+                              <div className="space-y-3">
+                                <div className="text-[9px] uppercase font-bold tracking-widest text-[var(--muted)]">Selected Horses</div>
+                                <div className="grid grid-cols-5 gap-2">
+                                  {slot.teamEntry.horses.map((horse, i) => (
+                                    <div
+                                      key={i}
+                                      className="aspect-square rounded-lg border border-white/10 bg-black/40 overflow-hidden ring-1 ring-white/5 shadow-inner group/horse relative"
+                                    >
+                                      <Image
+                                        src={horse.imageUrl}
+                                        alt={horse.name}
+                                        fill
+                                        sizes="40px"
+                                        className="object-cover transition-transform group-hover/horse:scale-110"
+                                      />
+                                      <div className="absolute inset-0 bg-black/0 group-hover/horse:bg-black/20 transition-colors" />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-5 gap-2 opacity-20">
+                                {[...Array(5)].map((_, i) => (
+                                  <div key={i} className="aspect-square rounded-lg border-2 border-dashed border-white/10 flex items-center justify-center text-[8px]">
+                                    ?
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Bracket Visualization */}
-                <div className="rounded-2xl border border-white/10 bg-black/30 p-6 overflow-hidden">
-                  <h3 className="text-xl font-bold uppercase tracking-tight mb-6">Tournament Tree</h3>
-                  <div className="bracket-container">
-                    {bracketRounds.map((round, roundIndex) => {
-                      // Show all rounds for visual structure
+                {bracketTab === "bracket" && (
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-8 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h3 className="text-xl font-bold uppercase tracking-tight mb-8">Tournament Tree</h3>
+                    <div className="bracket-container custom-scrollbar pb-6">
+                      {bracketRounds.map((round, roundIndex) => {
+                        return (
+                          <div key={`round-${roundIndex}`} className="bracket-round">
+                            <div className="mb-6 text-center text-[10px] font-black uppercase tracking-[0.4em] text-[var(--accent)]/60 border-b border-white/10 pb-3">
+                              {round.name}
+                            </div>
+                            <div className="flex flex-col flex-grow justify-around gap-12">
+                              {round.matches.map((matchIndex) => {
+                                const addressA = getRoundParticipant(roundIndex, matchIndex, 0);
+                                const addressB = getRoundParticipant(roundIndex, matchIndex, 1);
+                                const matchId = `round-${roundIndex}-match-${matchIndex}`;
+                                const result = bracketResults[matchId];
 
-                      return (
-                        <div key={`round-${roundIndex}`} className="bracket-round">
-                          <div className="mb-4 text-center text-[10px] uppercase font-bold tracking-[0.3em] text-[var(--muted)] border-b border-white/5 pb-2">
-                            {round.name}
-                          </div>
-                          <div className="flex flex-col flex-grow justify-around gap-8">
-                            {round.matches.map((matchIndex) => {
-                              const addressA = getRoundParticipant(roundIndex, matchIndex, 0);
-                              const addressB = getRoundParticipant(roundIndex, matchIndex, 1);
-                              const matchId = `round-${roundIndex}-match-${matchIndex}`;
-                              const result = bracketResults[matchId];
+                                return (
+                                  <div
+                                    key={matchId}
+                                    className={`bracket-match border shadow-[0_10px_30px_rgba(0,0,0,0.5)] group hover:border-[var(--accent)]/40 transition-all duration-500 relative ${result ? "border-white/20 bg-black/80 ring-1 ring-white/5" : "border-white/10 bg-black/60"}`}
+                                  >
+                                    <div className={`bracket-match-slot p-3 rounded-xl transition-all duration-300 ${result?.winnerAddress === addressA ? "bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-[var(--accent)]/30 scale-105 z-10" : addressA ? "bg-white/5 font-bold" : "text-[var(--muted)]/40"}`}>
+                                      <span className="font-mono whitespace-nowrap overflow-x-auto no-scrollbar max-w-[150px] text-[10px]">
+                                        {addressA ? displayAddress(addressA) : "-"}
+                                      </span>
+                                      <span className="font-black text-xs">{result?.score.left ?? 0}</span>
+                                    </div>
+                                    <div className="flex items-center gap-4 px-3 py-1">
+                                      <div className="h-[1px] flex-grow bg-white/10" />
+                                      {isAdmin && addressA && addressB && !result && (
+                                        <button
+                                          onClick={() => runBracketMatch(roundIndex, matchIndex)}
+                                          disabled={!!simulatingMatch}
+                                          className={`rounded-full bg-[var(--accent)] px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-black hover:scale-110 hover:shadow-[0_0_20px_var(--accent)] transition-all active:scale-95 z-20 ${simulatingMatch === matchId ? "animate-pulse ring-2 ring-white/40" : ""}`}
+                                        >
+                                          {simulatingMatch === matchId ? "RACING..." : "RUN MATCH"}
+                                        </button>
+                                      )}
 
-                              return (
-                                <div
-                                  key={matchId}
-                                  className={`bracket-match border shadow-xl group hover:border-[var(--accent)]/30 transition-all duration-300 relative ${result ? "border-white/20 bg-black/80" : "border-white/10 bg-black/60"}`}
-                                >
-                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${result?.winnerAddress === addressA ? "bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/20" : addressA ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
-                                    <span className="font-mono whitespace-nowrap overflow-x-auto no-scrollbar max-w-[180px]">
-                                      {addressA ? displayAddress(addressA) : "-"}
-                                    </span>
-                                    <span className="font-mono">{result?.score.left ?? 0}</span>
-                                  </div>
-                                  <div className="flex items-center gap-3 px-2">
-                                    <div className="h-[1px] flex-grow bg-white/5" />
-                                    {isAdmin && addressA && addressB && !result && (
-                                      <button
-                                        onClick={() => runBracketMatch(roundIndex, matchIndex)}
-                                        disabled={!!simulatingMatch}
-                                        className={`rounded bg-[var(--accent)] px-3 py-1 text-[8px] font-bold text-black hover:scale-110 transition-all active:scale-95 z-10 shadow-lg ${simulatingMatch === matchId ? "animate-pulse ring-2 ring-white/20" : ""}`}
-                                      >
-                                        {simulatingMatch === matchId ? "RACING..." : "RUN MATCH"}
-                                      </button>
+                                      <span className="text-[10px] font-black tracking-tighter text-[var(--muted)] opacity-50">VS</span>
+                                      <div className="h-[1px] flex-grow bg-white/10" />
+                                    </div>
+                                    <div className={`bracket-match-slot p-3 rounded-xl transition-all duration-300 ${result?.winnerAddress === addressB ? "bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-[var(--accent)]/30 scale-105 z-10" : addressB ? "bg-white/5 font-bold" : "text-[var(--muted)]/40"}`}>
+                                      <span className="font-mono whitespace-nowrap overflow-x-auto no-scrollbar max-w-[150px] text-[10px]">
+                                        {addressB ? displayAddress(addressB) : "-"}
+                                      </span>
+                                      <span className="font-black text-xs">{result?.score.right ?? 0}</span>
+                                    </div>
+
+                                    {roundIndex < bracketRounds.length - 1 && (
+                                      <div className="bracket-connector transition-all duration-500 group-hover:bg-[var(--accent)]/50" />
                                     )}
-
-                                    <span className="text-[8px] uppercase tracking-tighter text-[var(--muted)]">VS</span>
-                                    <div className="h-[1px] flex-grow bg-white/5" />
                                   </div>
-                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${result?.winnerAddress === addressB ? "bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/20" : addressB ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
-                                    <span className="font-mono whitespace-nowrap overflow-x-auto no-scrollbar max-w-[180px]">
-                                      {addressB ? displayAddress(addressB) : "-"}
-                                    </span>
-                                    <span className="font-mono">{result?.score.right ?? 0}</span>
-                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-                                  {roundIndex < bracketRounds.length - 1 && (
-                                    <div className="bracket-connector transition-all duration-300 group-hover:bg-[var(--accent)]/30" />
-                                  )}
-                                </div>
-                              );
-                            })}
+                {/* Tournament History Tab */}
+                {bracketTab === "history" && (
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-8 shadow-inner animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between mb-8">
+                      <h3 className="text-xl font-bold uppercase tracking-tight">Race Results</h3>
+                      <button
+                        className="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95"
+                        onClick={async () => {
+                          const historyUrl = `/api/race-results/get?season=${SEASON}`;
+                          const historyRes = await fetch(historyUrl);
+                          if (historyRes.ok) {
+                            const historyData = (await historyRes.json()) as {
+                              results: MatchResult[];
+                            };
+                            setMatchHistory(historyData.results ?? []);
+                          }
+                        }}
+                      >
+                        Refresh Results
+                      </button>
+                    </div>
+
+                    <div className="grid gap-4 max-h-[800px] overflow-y-auto custom-scrollbar pr-2">
+                      {matchHistory.length === 0 && (
+                        <div className="py-20 text-center">
+                          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--muted)]">No matches recorded this season yet.</p>
+                        </div>
+                      )}
+                      {matchHistory.map((match) => (
+                        <div
+                          key={match.id}
+                          className="group rounded-2xl border border-white/5 bg-black/40 p-6 hover:border-[var(--accent)]/30 transition-all duration-300"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--muted)] flex items-center gap-2">
+                              <span className="h-1 w-5 bg-[var(--accent)]/50" />
+                              {new Date(match.created_at).toLocaleString()}
+                            </span>
+                            <span className="text-[9px] font-mono text-[var(--muted)]/50 bg-white/5 px-2 py-0.5 rounded">
+                              {match.match_id ?? "EXHIBITION"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-8 py-4 px-6 rounded-xl bg-white/5">
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className={`text-sm font-bold uppercase tracking-tight ${match.log?.winner_address === match.wallet_address ? "text-[var(--accent)]" : ""}`}>
+                                {match.wallet_address ? displayAddress(match.wallet_address) : "unknown"}
+                              </div>
+                            </div>
+                            <div className="text-xs font-black text-[var(--muted)] opacity-50 px-3 cursor-default">VS</div>
+                            <div className="flex items-center gap-4 flex-1 justify-end text-right">
+                              <div className={`text-sm font-bold uppercase tracking-tight ${match.log?.winner_address === match.log?.opponent_address ? "text-[var(--accent)]" : ""}`}>
+                                {match.log?.opponent_address ? displayAddress(match.log.opponent_address) : "unknown"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                              Result: <span className="text-white ml-2">{match.log?.winner_address ? `Winner ${displayAddress(match.log.winner_address)}` : "Draw"}</span>
+                            </div>
+
+                            {match.log?.heats && match.log.heats.length > 0 && (
+                              <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
+                                {match.log.heats.map((heat, index) => (
+                                  <div
+                                    key={`${match.id}-heat-${index}`}
+                                    title={heat.status}
+                                    className={`h-2 w-2 rounded-full ring-1 ring-white/5 ${heat.status === "left wins" ? "bg-[var(--accent)]" : heat.status === "right wins" ? "bg-[var(--accent-2)]" : "bg-white/20"
+                                      }`}
+                                  />
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-
-                </div>
-              </div>
-            </section>
-
-
-            <section className="rounded-3xl border border-white/10 bg-black/40 p-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl">{view === "bracket" ? "Tournament History" : "Your History"}</h2>
-                <button
-                  className="rounded-full border border-white/20 px-4 py-2 text-sm text-white"
-                  onClick={async () => {
-                    const historyUrl = view === "bracket"
-                      ? `/api/race-results/get?season=${SEASON}`
-                      : `/api/race-results/get?address=${stableAddress}&season=${SEASON}`;
-
-                    const historyRes = await fetch(historyUrl);
-                    if (historyRes.ok) {
-                      const historyData = (await historyRes.json()) as {
-                        results: MatchResult[];
-                      };
-                      setMatchHistory(historyData.results ?? []);
-                    }
-                  }}
-                >
-                  Refresh
-                </button>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {matchHistory.length === 0 && (
-                  <p className="text-sm text-[var(--muted)]">No matches yet.</p>
                 )}
-                {matchHistory.map((match) => (
-                  <div
-                    key={match.id}
-                    className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-                        {new Date(match.created_at).toLocaleString()}
-                      </span>
-                      <span className="text-xs text-[var(--muted)]">
-                        {match.match_id ?? "Match"}
-                      </span>
-                    </div>
-                    <div className="mt-2 text-sm">
-                      {match.wallet_address
-                        ? displayAddress(match.wallet_address)
-                        : "unknown"}
-                      {" vs "}
-                      {match.log?.opponent_address
-                        ? displayAddress(match.log.opponent_address)
-                        : "unknown"}
-                    </div>
-                    <div className="mt-2 text-xs text-[var(--muted)]">
-                      Winner:{" "}
-                      {match.log?.winner_address
-                        ? displayAddress(match.log.winner_address)
-                        : "Draw"}
-                    </div>
-                    {match.log?.heats && match.log.heats.length > 0 && (
-                      <div className="mt-3 space-y-1 text-xs text-[var(--muted)]">
-                        {match.log.heats.map((heat, index) => (
-                          <div key={`${match.id}-heat-${index}`}>
-                            Heat {index + 1}: {heat.status}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
             </section>
           </div>
