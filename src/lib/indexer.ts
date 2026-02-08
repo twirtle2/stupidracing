@@ -6,6 +6,19 @@ export type IndexerAccountAsset = {
   deleted?: boolean;
 };
 
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000) {
+  for (let i = 0; i < retries; i++) {
+    const response = await fetch(url, options);
+    if (response.status === 429 && i < retries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, backoff * (i + 1)));
+      continue;
+    }
+    return response;
+  }
+  return fetch(url, options);
+}
+
+
 export async function fetchAccountAssets(address: string) {
   const assets: IndexerAccountAsset[] = [];
   let nextToken: string | undefined;

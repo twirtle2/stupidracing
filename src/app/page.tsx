@@ -84,6 +84,12 @@ export default function Home() {
   const [stableAddressOverride, setStableAddressOverride] = useState("");
   const [nfdMap, setNfdMap] = useState<Record<string, string>>({});
   const [view, setView] = useState<"stable" | "bracket">("stable");
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
 
 
   const stableAddress = stableAddressOverride.trim() || activeAddress || "";
@@ -596,8 +602,19 @@ export default function Home() {
     return rounds;
   }, [bracketSize]);
 
+  if (!hasMounted) {
+    return (
+      <main className="min-h-screen items-center justify-center flex">
+        <div className="animate-pulse text-[var(--accent)] font-bold tracking-widest text-xl">
+          LOADING STUPIDHORSE...
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen px-6 py-10 lg:px-12">
+
       <section className="mx-auto flex max-w-6xl flex-col gap-10">
         <header className="sticky top-4 z-20 rounded-3xl border border-white/10 bg-black/40 px-6 py-4 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-4">
