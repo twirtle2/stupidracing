@@ -34,7 +34,7 @@ export async function fetchAccountAssets(address: string) {
       url.searchParams.set("next", nextToken);
     }
 
-    const response = await fetch(url.toString(), { cache: "no-store" });
+    const response = await fetchWithRetry(url.toString(), { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Indexer error: ${response.status}`);
     }
@@ -76,7 +76,7 @@ export async function fetchCreatorAssets(creator: string) {
       url.searchParams.set("next", nextToken);
     }
 
-    const response = await fetch(url.toString(), { cache: "no-store" });
+    const response = await fetchWithRetry(url.toString(), { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Indexer error: ${response.status}`);
     }
@@ -124,7 +124,7 @@ export async function fetchArc69Metadata(assetId: number) {
   url.searchParams.set("tx-type", "acfg");
   url.searchParams.set("limit", "25");
 
-  const response = await fetch(url.toString(), { cache: "no-store" });
+  const response = await fetchWithRetry(url.toString(), { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Indexer error: ${response.status}`);
   }
@@ -146,4 +146,21 @@ export async function fetchArc69Metadata(assetId: number) {
   }
 
   return null;
+}
+
+export async function fetchAsset(assetId: number) {
+  const baseUrl = env.indexerUrl || "http://localhost";
+  const url = `${baseUrl.replace(/\/$/, "")}/v2/assets/${assetId}`;
+
+  const response = await fetchWithRetry(url, { cache: "no-store" });
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`Indexer error: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    asset: IndexerAsset;
+  };
+
+  return data.asset;
 }
