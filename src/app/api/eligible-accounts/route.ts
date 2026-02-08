@@ -13,7 +13,7 @@ export async function GET(req: Request) {
             STUPIDHORSE_CREATORS.map((creator) => fetchCreatorAssets(creator))
         );
         const allCreatorAssets = creatorAssetsResults.flat();
-        const holderSample = allCreatorAssets.slice(0, 150); // Sample to stay within limits
+        const holderSample = allCreatorAssets.sort(() => 0.5 - Math.random()).slice(0, 500); // Shuffled sample of 500
         const holderMap = new Map<string, Set<number>>();
 
         await Promise.all(

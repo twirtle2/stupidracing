@@ -1200,8 +1200,7 @@ export default function Home() {
                   <h3 className="text-xl font-bold uppercase tracking-tight mb-6">Tournament Tree</h3>
                   <div className="bracket-container">
                     {bracketRounds.map((round, roundIndex) => {
-                      const hasAnyParticipant = round.matches.some(m => getRoundParticipant(roundIndex, m, 0) || getRoundParticipant(roundIndex, m, 1));
-                      if (roundIndex > 0 && !hasAnyParticipant) return null;
+                      // Show all rounds for visual structure
 
                       return (
                         <div key={`round-${roundIndex}`} className="bracket-round">
