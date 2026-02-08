@@ -93,6 +93,7 @@ export default function Home() {
   const [view, setView] = useState<"stable" | "bracket">("stable");
   const [hasMounted, setHasMounted] = useState(false);
   const [bracketResults, setBracketResults] = useState<Record<string, BracketMatchResult>>({});
+  const [simulatingMatch, setSimulatingMatch] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -654,46 +655,56 @@ export default function Home() {
     const addressB = getRoundParticipant(roundIndex, matchIndex, 1);
     if (!addressA || !addressB) return;
 
-    const teamA = await loadTeamForAddress(addressA);
-    const teamB = await loadTeamForAddress(addressB);
-
-    if (!teamA || !teamB) {
-      setError("Failed to load teams for bracket match.");
-      return;
-    }
-
-    const logs: RaceLogEntry[] = [];
-    let leftWins = 0;
-    let rightWins = 0;
-
-    for (let i = 0; i < 5; i++) {
-      const hA = teamA.horses[i];
-      const hB = teamB.horses[i];
-      if (!hA || !hB) continue;
-      const heat = runHeat();
-      logs.push({
-        left: heat.left,
-        right: heat.right,
-        leftRoll: 0,
-        rightRoll: 0,
-        status: `${hA.name} vs ${hB.name}: ${heat.status}`
-      });
-      if (heat.status === "left wins") leftWins++;
-      else if (heat.status === "right wins") rightWins++;
-    }
-
-    const winnerAddress = leftWins === rightWins ? null : (leftWins > rightWins ? addressA : addressB);
     const matchId = `round-${roundIndex}-match-${matchIndex}`;
+    setSimulatingMatch(matchId);
 
-    setBracketResults(prev => ({
-      ...prev,
-      [matchId]: {
-        winnerAddress,
-        score: { left: leftWins, right: rightWins },
-        logs
+    try {
+      const teamA = await loadTeamForAddress(addressA);
+      const teamB = await loadTeamForAddress(addressB);
+
+      if (!teamA || !teamB) {
+        setError("Failed to load teams for bracket match.");
+        return;
       }
-    }));
+
+      // Artificial delay for visual feedback
+      await new Promise(r => setTimeout(r, 1500));
+
+      const logs: RaceLogEntry[] = [];
+      let leftWins = 0;
+      let rightWins = 0;
+
+      for (let i = 0; i < 5; i++) {
+        const hA = teamA.horses[i];
+        const hB = teamB.horses[i];
+        if (!hA || !hB) continue;
+        const heat = runHeat();
+        logs.push({
+          left: heat.left,
+          right: heat.right,
+          leftRoll: 0,
+          rightRoll: 0,
+          status: `${hA.name} vs ${hB.name}: ${heat.status}`
+        });
+        if (heat.status === "left wins") leftWins++;
+        else if (heat.status === "right wins") rightWins++;
+      }
+
+      const winnerAddress = leftWins === rightWins ? null : (leftWins > rightWins ? addressA : addressB);
+
+      setBracketResults(prev => ({
+        ...prev,
+        [matchId]: {
+          winnerAddress,
+          score: { left: leftWins, right: rightWins },
+          logs
+        }
+      }));
+    } finally {
+      setSimulatingMatch(null);
+    }
   };
+
 
 
 
@@ -1147,9 +1158,18 @@ export default function Home() {
               </div>
 
               {/* Slots Section */}
-              <div className="mt-8 space-y-6">
+              <div className="mt-8 space-y-6 relative">
+                {loading && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-black/60 backdrop-blur-sm">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
+                    <p className="mt-4 text-xs font-bold uppercase tracking-widest text-[var(--accent)] animate-pulse">
+                      Finding eligible horses...
+                    </p>
+                  </div>
+                )}
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-6">
                   <h3 className="text-xl font-bold uppercase tracking-tight mb-4">Assign Slots</h3>
+
                   <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
                     {bracketSlotsArray.map((slot) => (
                       <div
@@ -1220,33 +1240,36 @@ export default function Home() {
                               return (
                                 <div
                                   key={matchId}
-                                  className="bracket-match border border-white/10 bg-black/60 shadow-xl group hover:border-[var(--accent)]/30 transition-all duration-300 relative"
+                                  className={`bracket-match border shadow-xl group hover:border-[var(--accent)]/30 transition-all duration-300 relative ${result ? "border-white/20 bg-black/80" : "border-white/10 bg-black/60"}`}
                                 >
-                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${addressA ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
+                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${result?.winnerAddress === addressA ? "bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/20" : addressA ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
                                     <span className="truncate max-w-[120px]">
                                       {addressA ? displayAddress(addressA) : "-"}
                                     </span>
-                                    <span className="text-[var(--accent)] font-mono">{result?.score.left ?? 0}</span>
+                                    <span className="font-mono">{result?.score.left ?? 0}</span>
                                   </div>
                                   <div className="flex items-center gap-3 px-2">
                                     <div className="h-[1px] flex-grow bg-white/5" />
                                     {isAdmin && addressA && addressB && !result && (
                                       <button
                                         onClick={() => runBracketMatch(roundIndex, matchIndex)}
-                                        className="rounded bg-[var(--accent)] px-2 py-0.5 text-[8px] font-bold text-black hover:scale-110 transition-transform active:scale-95 z-10"
+                                        disabled={!!simulatingMatch}
+                                        className={`rounded bg-[var(--accent)] px-3 py-1 text-[8px] font-bold text-black hover:scale-110 transition-all active:scale-95 z-10 shadow-lg ${simulatingMatch === matchId ? "animate-pulse ring-2 ring-white/20" : ""}`}
                                       >
-                                        RUN
+                                        {simulatingMatch === matchId ? "RACING..." : "RUN MATCH"}
                                       </button>
                                     )}
+
                                     <span className="text-[8px] uppercase tracking-tighter text-[var(--muted)]">VS</span>
                                     <div className="h-[1px] flex-grow bg-white/5" />
                                   </div>
-                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${addressB ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
+                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${result?.winnerAddress === addressB ? "bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/20" : addressB ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
                                     <span className="truncate max-w-[120px]">
                                       {addressB ? displayAddress(addressB) : "-"}
                                     </span>
-                                    <span className="text-[var(--accent)] font-mono">{result?.score.right ?? 0}</span>
+                                    <span className="font-mono">{result?.score.right ?? 0}</span>
                                   </div>
+
                                   {roundIndex < bracketRounds.length - 1 && (
                                     <div className="bracket-connector transition-all duration-300 group-hover:bg-[var(--accent)]/30" />
                                   )}
