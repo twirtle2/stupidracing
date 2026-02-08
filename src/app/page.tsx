@@ -57,6 +57,13 @@ type MatchResult = {
   created_at: string;
 };
 
+type BracketMatchResult = {
+  winnerAddress: string | null;
+  score: { left: number; right: number };
+  logs: RaceLogEntry[];
+};
+
+
 export default function Home() {
   const { wallets, activeAddress } = useWallet();
   const [ownedHorses, setOwnedHorses] = useState<OwnedHorse[]>([]);
@@ -85,6 +92,8 @@ export default function Home() {
   const [nfdMap, setNfdMap] = useState<Record<string, string>>({});
   const [view, setView] = useState<"stable" | "bracket">("stable");
   const [hasMounted, setHasMounted] = useState(false);
+  const [bracketResults, setBracketResults] = useState<Record<string, BracketMatchResult>>({});
+
 
   useEffect(() => {
     setHasMounted(true);
@@ -163,34 +172,58 @@ export default function Home() {
     if (!isAdmin) {
       return;
     }
-    const res = await fetch(
-      `/api/team-entries?season=${SEASON}&limit=${bracketSize}`
-    );
-    if (!res.ok) {
-      setError("Failed to auto-populate bracket");
-      return;
-    }
-    const data = (await res.json()) as {
-      entries: Array<{ wallet_address: string }>;
-    };
-    const addresses = data.entries
-      .map((entry) => entry.wallet_address)
-      .filter(Boolean);
-    const padded = addresses
-      .concat(Array(bracketSize).fill(""))
-      .slice(0, bracketSize);
-    setBracketSlots(padded);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/eligible-accounts?limit=${bracketSize}`);
+      if (!res.ok) {
+        throw new Error("Failed to query eligible accounts");
+      }
+      const data = (await res.json()) as {
+        accounts: Array<{ address: string; assetIds: number[] }>;
+      };
 
-    for (const [index, address] of addresses.entries()) {
-      if (index >= bracketSize) {
-        break;
+      if (data.accounts.length === 0) {
+        setError("No eligible accounts found with 5+ horses.");
+        return;
       }
-      const teamEntry = await loadTeamForAddress(address);
-      if (teamEntry) {
-        setTeams((prev) => ({ ...prev, [address]: teamEntry }));
+
+      const addresses = data.accounts.map(a => a.address);
+      const padded = addresses.concat(Array(bracketSize).fill("")).slice(0, bracketSize);
+      setBracketSlots(padded);
+
+      const newTeams: Record<string, TeamEntry> = { ...teams };
+
+      for (const account of data.accounts) {
+        const shuffledAssets = account.assetIds.sort(() => 0.5 - Math.random());
+        const selectedAssetIds = shuffledAssets.slice(0, 5);
+
+        const assetsRes = await fetch("/api/asset-details", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assetIds: selectedAssetIds,
+            includeMetadata: true,
+          }),
+        });
+
+        if (assetsRes.ok) {
+          const assetsData = await assetsRes.json();
+          newTeams[account.address] = {
+            address: account.address,
+            assetIds: selectedAssetIds,
+            horses: assetsData.assets
+          };
+        }
       }
+      setTeams(newTeams);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
+
+
 
   const loadTeamForAddress = useCallback(async (address: string) => {
     const response = await fetch(
@@ -602,6 +635,65 @@ export default function Home() {
     return rounds;
   }, [bracketSize]);
 
+  const getRoundParticipant = useCallback((roundIndex: number, matchIndex: number, slotIndex: number): string | null => {
+    if (roundIndex === 0) {
+      const actualSlotIndex = matchIndex * 2 + slotIndex;
+      return bracketSlots[actualSlotIndex] || null;
+    }
+    const prevRoundIndex = roundIndex - 1;
+    const prevMatchIndex = matchIndex * 2 + slotIndex;
+    const prevResult = bracketResults[`round-${prevRoundIndex}-match-${prevMatchIndex}`];
+    return prevResult?.winnerAddress || null;
+  }, [bracketSlots, bracketResults]);
+
+  const runBracketMatch = async (roundIndex: number, matchIndex: number) => {
+    const addressA = getRoundParticipant(roundIndex, matchIndex, 0);
+    const addressB = getRoundParticipant(roundIndex, matchIndex, 1);
+    if (!addressA || !addressB) return;
+
+    const teamA = await loadTeamForAddress(addressA);
+    const teamB = await loadTeamForAddress(addressB);
+
+    if (!teamA || !teamB) {
+      setError("Failed to load teams for bracket match.");
+      return;
+    }
+
+    const logs: RaceLogEntry[] = [];
+    let leftWins = 0;
+    let rightWins = 0;
+
+    for (let i = 0; i < 5; i++) {
+      const hA = teamA.horses[i];
+      const hB = teamB.horses[i];
+      if (!hA || !hB) continue;
+      const heat = runHeat();
+      logs.push({
+        left: heat.left,
+        right: heat.right,
+        leftRoll: 0,
+        rightRoll: 0,
+        status: `${hA.name} vs ${hB.name}: ${heat.status}`
+      });
+      if (heat.status === "left wins") leftWins++;
+      else if (heat.status === "right wins") rightWins++;
+    }
+
+    const winnerAddress = leftWins === rightWins ? null : (leftWins > rightWins ? addressA : addressB);
+    const matchId = `round-${roundIndex}-match-${matchIndex}`;
+
+    setBracketResults(prev => ({
+      ...prev,
+      [matchId]: {
+        winnerAddress,
+        score: { left: leftWins, right: rightWins },
+        logs
+      }
+    }));
+  };
+
+
+
   if (!hasMounted) {
     return (
       <main className="min-h-screen items-center justify-center flex">
@@ -623,7 +715,11 @@ export default function Home() {
                 <h1 className="text-3xl leading-none md:text-4xl">
                   StupidHorse Racing
                 </h1>
+                <p className="mt-1 text-xs font-medium italic tracking-wide text-[var(--muted)] opacity-80">
+                  You can lead a horse to water, but you can’t stop it from jumping off the cliff.
+                </p>
               </div>
+
 
               <nav className="flex items-center gap-6 ml-4">
                 <button
@@ -714,9 +810,8 @@ export default function Home() {
           </div>
         </header>
 
-        <p className="text-center text-sm font-medium italic tracking-wide text-[var(--muted)] opacity-80 mt-4">
-          "You can lead a horse to water, but you can’t stop it from jumping off the cliff."
-        </p>
+
+
 
 
 
@@ -1104,47 +1199,64 @@ export default function Home() {
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-6 overflow-hidden">
                   <h3 className="text-xl font-bold uppercase tracking-tight mb-6">Tournament Tree</h3>
                   <div className="bracket-container">
-                    {bracketRounds.map((round, roundIndex) => (
-                      <div key={`round-${roundIndex}`} className="bracket-round">
-                        <div className="mb-4 text-center text-[10px] uppercase font-bold tracking-[0.3em] text-[var(--muted)] border-b border-white/5 pb-2">
-                          {round.name}
+                    {bracketRounds.map((round, roundIndex) => {
+                      const hasAnyParticipant = round.matches.some(m => getRoundParticipant(roundIndex, m, 0) || getRoundParticipant(roundIndex, m, 1));
+                      if (roundIndex > 0 && !hasAnyParticipant) return null;
+
+                      return (
+                        <div key={`round-${roundIndex}`} className="bracket-round">
+                          <div className="mb-4 text-center text-[10px] uppercase font-bold tracking-[0.3em] text-[var(--muted)] border-b border-white/5 pb-2">
+                            {round.name}
+                          </div>
+                          <div className="flex flex-col flex-grow justify-around gap-8">
+                            {round.matches.map((matchIndex) => {
+                              const addressA = getRoundParticipant(roundIndex, matchIndex, 0);
+                              const addressB = getRoundParticipant(roundIndex, matchIndex, 1);
+                              const matchId = `round-${roundIndex}-match-${matchIndex}`;
+                              const result = bracketResults[matchId];
+
+                              return (
+                                <div
+                                  key={matchId}
+                                  className="bracket-match border border-white/10 bg-black/60 shadow-xl group hover:border-[var(--accent)]/30 transition-all duration-300 relative"
+                                >
+                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${addressA ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
+                                    <span className="truncate max-w-[120px]">
+                                      {addressA ? displayAddress(addressA) : "-"}
+                                    </span>
+                                    <span className="text-[var(--accent)] font-mono">{result?.score.left ?? 0}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 px-2">
+                                    <div className="h-[1px] flex-grow bg-white/5" />
+                                    {isAdmin && addressA && addressB && !result && (
+                                      <button
+                                        onClick={() => runBracketMatch(roundIndex, matchIndex)}
+                                        className="rounded bg-[var(--accent)] px-2 py-0.5 text-[8px] font-bold text-black hover:scale-110 transition-transform active:scale-95 z-10"
+                                      >
+                                        RUN
+                                      </button>
+                                    )}
+                                    <span className="text-[8px] uppercase tracking-tighter text-[var(--muted)]">VS</span>
+                                    <div className="h-[1px] flex-grow bg-white/5" />
+                                  </div>
+                                  <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${addressB ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
+                                    <span className="truncate max-w-[120px]">
+                                      {addressB ? displayAddress(addressB) : "-"}
+                                    </span>
+                                    <span className="text-[var(--accent)] font-mono">{result?.score.right ?? 0}</span>
+                                  </div>
+                                  {roundIndex < bracketRounds.length - 1 && (
+                                    <div className="bracket-connector transition-all duration-300 group-hover:bg-[var(--accent)]/30" />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className="flex flex-col flex-grow justify-around gap-8">
-                          {round.matches.map((matchIndex) => {
-                            const slotA = bracketSlotsArray[matchIndex * 2];
-                            const slotB = bracketSlotsArray[matchIndex * 2 + 1];
-                            return (
-                              <div
-                                key={`round-${roundIndex}-match-${matchIndex}`}
-                                className="bracket-match border border-white/10 bg-black/60 shadow-xl group hover:border-[var(--accent)]/30 transition-all duration-300"
-                              >
-                                <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${slotA?.address ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
-                                  <span className="truncate max-w-[120px]">
-                                    {slotA?.address ? displayAddress(slotA.address) : `Slot ${matchIndex * 2 + 1}`}
-                                  </span>
-                                  <span className="text-[var(--accent)] font-mono">0</span>
-                                </div>
-                                <div className="flex items-center gap-3 px-2">
-                                  <div className="h-[1px] flex-grow bg-white/5" />
-                                  <span className="text-[8px] uppercase tracking-tighter text-[var(--muted)]">VS</span>
-                                  <div className="h-[1px] flex-grow bg-white/5" />
-                                </div>
-                                <div className={`bracket-match-slot p-2 rounded-lg transition-colors ${slotB?.address ? "bg-white/5 font-bold" : "text-[var(--muted)]"}`}>
-                                  <span className="truncate max-w-[120px]">
-                                    {slotB?.address ? displayAddress(slotB.address) : `Slot ${matchIndex * 2 + 2}`}
-                                  </span>
-                                  <span className="text-[var(--accent)] font-mono">0</span>
-                                </div>
-                                {roundIndex < bracketRounds.length - 1 && (
-                                  <div className="bracket-connector transition-all duration-300 group-hover:bg-[var(--accent)]/30" />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+
                 </div>
               </div>
             </section>
@@ -1221,7 +1333,20 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      <footer className="mt-20 border-t border-white/5 py-10 text-center">
+        <p className="text-sm text-[var(--muted)]">
+          © 2026 StupidHorse Racing. Move fast and break legs.
+        </p>
+        <button
+          onClick={() => setIsAdmin(!isAdmin)}
+          className="mt-4 text-[10px] uppercase tracking-widest text-white/10 hover:text-[var(--accent)] transition-colors"
+        >
+          [Admin Mode: {isAdmin ? "Enabled" : "Disabled"}]
+        </button>
+      </footer>
     </main >
+
 
 
   );
