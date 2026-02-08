@@ -775,17 +775,17 @@ export default function Home() {
 
       <section className="mx-auto flex max-w-6xl flex-col gap-10">
         <header className="sticky top-4 z-20 rounded-3xl border border-white/10 bg-black/50 px-8 py-5 backdrop-blur-xl">
-          <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-black uppercase tracking-tighter md:text-3xl bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+          <div className="flex items-center justify-between gap-x-8">
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-2xl font-black uppercase tracking-tighter md:text-3xl bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent whitespace-nowrap">
                 StupidHorse Racing
               </h1>
-              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.35em] text-[var(--muted)] opacity-70">
+              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.35em] text-[var(--muted)] opacity-70 max-w-[280px]">
                 You can lead a horse to water, but you can’t stop it from jumping off the cliff.
               </p>
             </div>
 
-            <nav className="flex items-center gap-8">
+            <nav className="flex items-center gap-8 flex-shrink-0">
               <button
                 onClick={() => setView("stable")}
                 className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${view === "stable" ? "text-[var(--accent)] scale-110" : "text-[var(--muted)] hover:text-white"
@@ -802,7 +802,7 @@ export default function Home() {
               </button>
             </nav>
 
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 flex-shrink-0">
               <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
                 <span>User</span>
                 <label className="relative inline-flex cursor-pointer items-center">
