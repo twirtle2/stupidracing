@@ -620,13 +620,11 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="rounded-2xl border border-white/10 bg-black/60 px-4 py-2">
-                <p className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
-                  Championship
-                </p>
                 <h1 className="text-3xl leading-none md:text-4xl">
                   StupidHorse Racing
                 </h1>
               </div>
+
               <nav className="flex items-center gap-6 ml-4">
                 <button
                   onClick={() => setView("stable")}
@@ -716,6 +714,12 @@ export default function Home() {
           </div>
         </header>
 
+        <p className="text-center text-sm font-medium italic tracking-wide text-[var(--muted)] opacity-80 mt-4">
+          "You can lead a horse to water, but you can’t stop it from jumping off the cliff."
+        </p>
+
+
+
 
         {error && (
           <div className="rounded-2xl border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-4 py-3 text-sm">
@@ -734,7 +738,8 @@ export default function Home() {
                 <p className="mt-1 text-sm text-[var(--muted)]">
                   {loading
                     ? "Scanning blockchain holdings..."
-                    : `Managing ${ownedHorses.length} StupidHorses.`}
+                    : `Managing ${ownedHorses.length} stupid horses.`}
+
                 </p>
                 {stableAddress && (
                   <div className="mt-2 flex items-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 w-fit border border-white/10">
@@ -1216,7 +1221,7 @@ export default function Home() {
           </div>
         )}
       </section>
-    </main>
+    </main >
 
 
   );
