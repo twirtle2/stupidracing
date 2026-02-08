@@ -94,6 +94,8 @@ export default function Home() {
   const [hasMounted, setHasMounted] = useState(false);
   const [bracketResults, setBracketResults] = useState<Record<string, BracketMatchResult>>({});
   const [simulatingMatch, setSimulatingMatch] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
 
 
   useEffect(() => {
@@ -382,7 +384,7 @@ export default function Home() {
     };
 
     fetchData();
-  }, [stableAddress, activeAddress, loadTeamForAddress]);
+  }, [stableAddress, activeAddress, loadTeamForAddress, refreshTrigger]);
 
   const setBracketSlotInput = (slotIndex: number, address: string) => {
     setBracketSlots((prev) => {
@@ -659,11 +661,14 @@ export default function Home() {
     setSimulatingMatch(matchId);
 
     try {
-      const teamA = await loadTeamForAddress(addressA);
-      const teamB = await loadTeamForAddress(addressB);
+      let teamA: TeamEntry | undefined = teams[addressA];
+      let teamB: TeamEntry | undefined = teams[addressB];
+
+      if (!teamA) teamA = (await loadTeamForAddress(addressA)) || undefined;
+      if (!teamB) teamB = (await loadTeamForAddress(addressB)) || undefined;
 
       if (!teamA || !teamB) {
-        setError("Failed to load teams for bracket match.");
+        setError(`Failed to load teams for bracket match: ${!teamA ? addressA : ""} ${!teamB ? addressB : ""}`);
         return;
       }
 
@@ -674,21 +679,27 @@ export default function Home() {
       let leftWins = 0;
       let rightWins = 0;
 
-      for (let i = 0; i < 5; i++) {
+      const horseCount = Math.min(teamA.horses.length, teamB.horses.length, 5);
+      if (horseCount === 0) {
+        setError("One or both teams have no horses eligible for the match.");
+        return;
+      }
+
+      for (let i = 0; i < horseCount; i++) {
         const hA = teamA.horses[i];
         const hB = teamB.horses[i];
-        if (!hA || !hB) continue;
         const heat = runHeat();
         logs.push({
           left: heat.left,
           right: heat.right,
           leftRoll: 0,
           rightRoll: 0,
-          status: `${hA.name} vs ${hB.name}: ${heat.status}`
+          status: `${hA?.name || "Left"} vs ${hB?.name || "Right"}: ${heat.status}`
         });
         if (heat.status === "left wins") leftWins++;
         else if (heat.status === "right wins") rightWins++;
       }
+
 
       const winnerAddress = leftWins === rightWins ? null : (leftWins > rightWins ? addressA : addressB);
 
@@ -700,9 +711,35 @@ export default function Home() {
           logs
         }
       }));
+
+      // Persist results if a winner was decided
+      if (winnerAddress) {
+        await fetch("/api/race-results", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            season: SEASON,
+            wallet_address: addressA,
+            team_asset_ids: teamA.assetIds,
+            match_id: matchId,
+            log: {
+              opponent_address: addressB,
+              opponent_asset_ids: teamB.assetIds,
+              winner_address: winnerAddress,
+              heats: logs
+            }
+          }),
+        });
+        setRefreshTrigger(prev => prev + 1);
+      }
+    } catch (err) {
+      setError(`Simulation error: ${(err as Error).message}`);
     } finally {
       setSimulatingMatch(null);
     }
+
+
+
   };
 
 
