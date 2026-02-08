@@ -193,29 +193,32 @@ export default function Home() {
 
       const newTeams: Record<string, TeamEntry> = { ...teams };
 
-      for (const account of data.accounts) {
-        const shuffledAssets = account.assetIds.sort(() => 0.5 - Math.random());
-        const selectedAssetIds = shuffledAssets.slice(0, 5);
+      await Promise.all(
+        data.accounts.map(async (account) => {
+          const shuffledAssets = account.assetIds.sort(() => 0.5 - Math.random());
+          const selectedAssetIds = shuffledAssets.slice(0, 5);
 
-        const assetsRes = await fetch("/api/asset-details", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assetIds: selectedAssetIds,
-            includeMetadata: true,
-          }),
-        });
+          const assetsRes = await fetch("/api/asset-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              assetIds: selectedAssetIds,
+              includeMetadata: true,
+            }),
+          });
 
-        if (assetsRes.ok) {
-          const assetsData = await assetsRes.json();
-          newTeams[account.address] = {
-            address: account.address,
-            assetIds: selectedAssetIds,
-            horses: assetsData.assets
-          };
-        }
-      }
+          if (assetsRes.ok) {
+            const assetsData = await assetsRes.json();
+            newTeams[account.address] = {
+              address: account.address,
+              assetIds: selectedAssetIds,
+              horses: assetsData.assets
+            };
+          }
+        })
+      );
       setTeams(newTeams);
+
     } catch (err) {
       setError((err as Error).message);
     } finally {

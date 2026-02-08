@@ -14,23 +14,27 @@ export async function fetchNfdForAddresses(addresses: string[]) {
       address: chunk.join(","),
       view: "tiny",
     });
-    const res = await fetch(`https://api.nf.domains/nfd/lookup?${params}`);
-    if (!res.ok) {
-      continue;
-    }
-    const data = (await res.json()) as NfdLookupResult | Array<any>;
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        if (item?.address && item?.name) {
-          out[item.address] = item.name;
+    try {
+      const res = await fetch(`https://api.nf.domains/nfd/lookup?${params}`);
+      if (!res.ok) {
+        continue;
+      }
+      const data = (await res.json()) as NfdLookupResult | Array<any>;
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (item?.address && item?.name) {
+            out[item.address] = item.name;
+          }
+        }
+        continue;
+      }
+      for (const [address, value] of Object.entries(data)) {
+        if (value?.name) {
+          out[address] = value.name;
         }
       }
-      continue;
-    }
-    for (const [address, value] of Object.entries(data)) {
-      if (value?.name) {
-        out[address] = value.name;
-      }
+    } catch (e) {
+      // Silently handle NFD lookup failures (expected for non-NFD addresses)
     }
   }
 

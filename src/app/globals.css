@@ -23,13 +23,11 @@ body {
     radial-gradient(circle at 10% 10%, rgba(255, 209, 102, 0.16), transparent 40%),
     radial-gradient(circle at 80% 20%, rgba(6, 214, 160, 0.2), transparent 40%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%),
-    repeating-linear-gradient(
-      135deg,
+    repeating-linear-gradient(135deg,
       rgba(255, 255, 255, 0.03) 0px,
       rgba(255, 255, 255, 0.03) 2px,
       transparent 2px,
-      transparent 8px
-    );
+      transparent 8px);
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
 }
@@ -53,9 +51,10 @@ h3 {
 .bracket-round {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
-  gap: 1rem;
-  min-width: 200px;
+  justify-content: center;
+  gap: 2rem;
+  min-width: 280px;
+  flex-shrink: 0;
 }
 
 .bracket-match {
