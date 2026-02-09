@@ -1159,7 +1159,7 @@ export default function Home() {
                   ].map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setBracketTab(tab.id as any)}
+                      onClick={() => setBracketTab(tab.id as "assign" | "bracket" | "history")}
                       className={`px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${bracketTab === tab.id
                         ? "text-[var(--accent)]"
                         : "text-[var(--muted)] hover:text-white"

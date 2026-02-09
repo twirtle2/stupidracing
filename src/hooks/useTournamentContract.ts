@@ -28,15 +28,10 @@ export function useTournamentContract() {
             },
         });
 
-        // Create a signer adapter for useWallet if account is connected
-        let sender;
+        // If account is connected, register the signer and set default sender
         if (activeAccount) {
             const signer: TransactionSigner = async (txns: Transaction[], indexesToSign?: number[]) => {
-                // useWallet expects transactions as Uint8Array[]
                 const encodedTxns = txns.map(t => t.toByte());
-
-                // Return signed transactions
-                // Note: useWallet signTransactions returns Promise<(Uint8Array | null)[]>
                 const result = await signTransactions(encodedTxns, indexesToSign);
 
                 if (result.some(r => r === null)) {
@@ -45,16 +40,16 @@ export function useTournamentContract() {
                 return result as Uint8Array[];
             };
 
-            sender = {
-                addr: activeAccount.address,
-                signer,
-            };
+            // In algokit-utils v7+, register the signer with the AlgorandClient's account manager
+            algorand.account.setSigner(activeAccount.address, signer);
         }
 
+        // Instantiate the typed client using the correct AppClientParams for v7+
+        // Note: 'sender' is replaced by 'defaultSender' and signer is registered above
         return new StupidRacingTournamentClient({
             appId: APP_ID,
-            sender,
             algorand,
+            defaultSender: activeAccount?.address,
         });
     }, [activeAccount, signTransactions]);
 
