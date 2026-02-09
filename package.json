@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@agoralabs-sh/avm-web-provider": "^1.7.0",
+    "@algorandfoundation/algokit-utils": "^9.2.0",
     "@blockshake/defly-connect": "^1.2.1",
     "@magic-ext/algorand": "^24.4.2",
     "@perawallet/connect": "^1.5.0",

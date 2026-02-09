@@ -1,0 +1,1436 @@
+#pragma version 11
+#pragma typetrack false
+
+// @algorandfoundation/algorand-typescript/arc4/index.d.ts::Contract.approvalProgram() -> uint64:
+main:
+    intcblock 0 1 8 2
+    bytecblock "state" "bracket_size" 0x151f7c75 "registered_count" "s" "m" "admin" "t" "season" "beacon_app_id" "vrf_commit_round" "champion"
+    // smart_contracts/stupid_racing/contract.algo.ts:58
+    // export class StupidRacingTournament extends arc4.Contract {
+    txn OnCompletion
+    !
+    assert // OnCompletion must be NoOp
+    txn ApplicationID
+    bz main_create_NoOp@13
+    pushbytess 0x18db4b62 0x4f1247da 0xa3226c92 0xb8b61416 0x0c443577 0x03284fed 0xc32082f6 0xfdbcc9eb 0x4cab179a // method "openRegistration()void", method "registerTeam(uint64,uint64,uint64,uint64,uint64)void", method "closeTournament()void", method "getTeam(address)(uint64,uint64,uint64,uint64,uint64,uint64,uint64)", method "getSlot(uint64)address", method "getTournamentInfo()(uint64,uint64,uint64,uint64)", method "getMatchResult(uint64)(address,address,address,uint64,uint64,byte[])", method "runMatch(uint64,uint64)void", method "getChampion()address"
+    txna ApplicationArgs 0
+    match openRegistration registerTeam closeTournament getTeam getSlot getTournamentInfo getMatchResult runMatch getChampion
+    err
+
+main_create_NoOp@13:
+    // smart_contracts/stupid_racing/contract.algo.ts:58
+    // export class StupidRacingTournament extends arc4.Contract {
+    pushbytes 0x7efda4d2 // method "create(uint64,uint64,uint64)void"
+    txna ApplicationArgs 0
+    match create
+    err
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.create[routing]() -> void:
+create:
+    // smart_contracts/stupid_racing/contract.algo.ts:71
+    // @abimethod({ onCreate: 'require' })
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    dup
+    txna ApplicationArgs 3
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    swap
+    // smart_contracts/stupid_racing/contract.algo.ts:78
+    // bracketSize === Uint64(8) ||
+    intc_2 // 8
+    ==
+    // smart_contracts/stupid_racing/contract.algo.ts:78-79
+    // bracketSize === Uint64(8) ||
+    // bracketSize === Uint64(16) ||
+    bnz create_bool_true@5
+    // smart_contracts/stupid_racing/contract.algo.ts:79
+    // bracketSize === Uint64(16) ||
+    dig 1
+    pushint 16 // 16
+    ==
+    // smart_contracts/stupid_racing/contract.algo.ts:78-79
+    // bracketSize === Uint64(8) ||
+    // bracketSize === Uint64(16) ||
+    bnz create_bool_true@5
+    // smart_contracts/stupid_racing/contract.algo.ts:80
+    // bracketSize === Uint64(32) ||
+    dig 1
+    pushint 32 // 32
+    ==
+    // smart_contracts/stupid_racing/contract.algo.ts:78-80
+    // bracketSize === Uint64(8) ||
+    // bracketSize === Uint64(16) ||
+    // bracketSize === Uint64(32) ||
+    bnz create_bool_true@5
+    // smart_contracts/stupid_racing/contract.algo.ts:81
+    // bracketSize === Uint64(64),
+    dig 1
+    pushint 64 // 64
+    ==
+    // smart_contracts/stupid_racing/contract.algo.ts:78-81
+    // bracketSize === Uint64(8) ||
+    // bracketSize === Uint64(16) ||
+    // bracketSize === Uint64(32) ||
+    // bracketSize === Uint64(64),
+    bz create_bool_false@6
+
+create_bool_true@5:
+    intc_1 // 1
+
+create_bool_merge@7:
+    // smart_contracts/stupid_racing/contract.algo.ts:77-83
+    // assert(
+    //     bracketSize === Uint64(8) ||
+    //     bracketSize === Uint64(16) ||
+    //     bracketSize === Uint64(32) ||
+    //     bracketSize === Uint64(64),
+    //     'Bracket size must be 8, 16, 32, or 64'
+    // )
+    assert // Bracket size must be 8, 16, 32, or 64
+    // smart_contracts/stupid_racing/contract.algo.ts:60
+    // season = GlobalState<uint64>({ key: Bytes`season` })
+    bytec 8 // "season"
+    // smart_contracts/stupid_racing/contract.algo.ts:85
+    // this.season.value = season
+    dig 3
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:61
+    // bracketSize = GlobalState<uint64>({ key: Bytes`bracket_size` })
+    bytec_1 // "bracket_size"
+    // smart_contracts/stupid_racing/contract.algo.ts:86
+    // this.bracketSize.value = bracketSize
+    dig 2
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:59
+    // beaconAppId = GlobalState<uint64>({ key: Bytes`beacon_app_id` })
+    bytec 9 // "beacon_app_id"
+    // smart_contracts/stupid_racing/contract.algo.ts:87
+    // this.beaconAppId.value = beaconAppId
+    dig 1
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:62
+    // admin = GlobalState<Account>({ key: Bytes`admin` })
+    bytec 6 // "admin"
+    // smart_contracts/stupid_racing/contract.algo.ts:88
+    // this.admin.value = Txn.sender
+    txn Sender
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:89
+    // this.state.value = STATE_CREATED
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:64
+    // registeredCount = GlobalState<uint64>({ key: Bytes`registered_count` })
+    bytec_3 // "registered_count"
+    // smart_contracts/stupid_racing/contract.algo.ts:90
+    // this.registeredCount.value = Uint64(0)
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:71
+    // @abimethod({ onCreate: 'require' })
+    intc_1 // 1
+    return
+
+create_bool_false@6:
+    intc_0 // 0
+    b create_bool_merge@7
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.openRegistration[routing]() -> void:
+openRegistration:
+    // smart_contracts/stupid_racing/contract.algo.ts:95
+    // assert(Txn.sender === this.admin.value, 'Only admin can open registration')
+    txn Sender
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:62
+    // admin = GlobalState<Account>({ key: Bytes`admin` })
+    bytec 6 // "admin"
+    // smart_contracts/stupid_racing/contract.algo.ts:95
+    // assert(Txn.sender === this.admin.value, 'Only admin can open registration')
+    app_global_get_ex
+    assert // check GlobalState exists
+    ==
+    assert // Only admin can open registration
+    // smart_contracts/stupid_racing/contract.algo.ts:96
+    // assert(this.state.value === STATE_CREATED, 'Tournament must be in created state')
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:96
+    // assert(this.state.value === STATE_CREATED, 'Tournament must be in created state')
+    app_global_get_ex
+    assert // check GlobalState exists
+    !
+    assert // Tournament must be in created state
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:97
+    // this.state.value = STATE_REGISTRATION_OPEN
+    intc_1 // 1
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:93
+    // @abimethod()
+    intc_1 // 1
+    return
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.registerTeam[routing]() -> void:
+registerTeam:
+    // smart_contracts/stupid_racing/contract.algo.ts:100
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 3
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 4
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 5
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/stupid_racing/contract.algo.ts:108
+    // assert(this.state.value === STATE_REGISTRATION_OPEN, 'Registration is not open')
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:108
+    // assert(this.state.value === STATE_REGISTRATION_OPEN, 'Registration is not open')
+    app_global_get_ex
+    assert // check GlobalState exists
+    intc_1 // 1
+    ==
+    assert // Registration is not open
+    // smart_contracts/stupid_racing/contract.algo.ts:67
+    // teams = BoxMap<Account, TeamRegistration>({ keyPrefix: Bytes`t` })
+    bytec 7 // "t"
+    // smart_contracts/stupid_racing/contract.algo.ts:109
+    // assert(!this.teams(Txn.sender).exists, 'Team already registered')
+    txn Sender
+    // smart_contracts/stupid_racing/contract.algo.ts:67
+    // teams = BoxMap<Account, TeamRegistration>({ keyPrefix: Bytes`t` })
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:109
+    // assert(!this.teams(Txn.sender).exists, 'Team already registered')
+    box_len
+    bury 1
+    !
+    assert // Team already registered
+    // smart_contracts/stupid_racing/contract.algo.ts:111
+    // const currentCount: uint64 = this.registeredCount.value
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:64
+    // registeredCount = GlobalState<uint64>({ key: Bytes`registered_count` })
+    bytec_3 // "registered_count"
+    // smart_contracts/stupid_racing/contract.algo.ts:111
+    // const currentCount: uint64 = this.registeredCount.value
+    app_global_get_ex
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:112
+    // assert(currentCount < this.bracketSize.value, 'Bracket is full')
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:61
+    // bracketSize = GlobalState<uint64>({ key: Bytes`bracket_size` })
+    bytec_1 // "bracket_size"
+    // smart_contracts/stupid_racing/contract.algo.ts:112
+    // assert(currentCount < this.bracketSize.value, 'Bracket is full')
+    app_global_get_ex
+    assert // check GlobalState exists
+    dig 1
+    >
+    assert // Bracket is full
+    // smart_contracts/stupid_racing/contract.algo.ts:121
+    // registeredAt: Global.latestTimestamp,
+    global LatestTimestamp
+    // smart_contracts/stupid_racing/contract.algo.ts:114-122
+    // const team: TeamRegistration = {
+    //     assetId0: assetId0,
+    //     assetId1: assetId1,
+    //     assetId2: assetId2,
+    //     assetId3: assetId3,
+    //     assetId4: assetId4,
+    //     slotIndex: currentCount,
+    //     registeredAt: Global.latestTimestamp,
+    // }
+    uncover 6
+    itob
+    uncover 6
+    itob
+    concat
+    uncover 5
+    itob
+    concat
+    uncover 4
+    itob
+    concat
+    uncover 3
+    itob
+    concat
+    dig 2
+    itob
+    swap
+    dig 1
+    concat
+    uncover 2
+    itob
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:67
+    // teams = BoxMap<Account, TeamRegistration>({ keyPrefix: Bytes`t` })
+    bytec 7 // "t"
+    // smart_contracts/stupid_racing/contract.algo.ts:124
+    // this.teams(Txn.sender).value = clone(team)
+    txn Sender
+    // smart_contracts/stupid_racing/contract.algo.ts:67
+    // teams = BoxMap<Account, TeamRegistration>({ keyPrefix: Bytes`t` })
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:124
+    // this.teams(Txn.sender).value = clone(team)
+    swap
+    box_put
+    // smart_contracts/stupid_racing/contract.algo.ts:125
+    // this.bracketSlots(currentCount).value = Txn.sender
+    txn Sender
+    // smart_contracts/stupid_racing/contract.algo.ts:68
+    // bracketSlots = BoxMap<uint64, Account>({ keyPrefix: Bytes`s` })
+    bytec 4 // "s"
+    uncover 2
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:125
+    // this.bracketSlots(currentCount).value = Txn.sender
+    swap
+    box_put
+    // smart_contracts/stupid_racing/contract.algo.ts:126
+    // this.registeredCount.value = currentCount + Uint64(1)
+    intc_1 // 1
+    +
+    // smart_contracts/stupid_racing/contract.algo.ts:64
+    // registeredCount = GlobalState<uint64>({ key: Bytes`registered_count` })
+    bytec_3 // "registered_count"
+    // smart_contracts/stupid_racing/contract.algo.ts:126
+    // this.registeredCount.value = currentCount + Uint64(1)
+    dig 1
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:128
+    // if (this.registeredCount.value === this.bracketSize.value) {
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:61
+    // bracketSize = GlobalState<uint64>({ key: Bytes`bracket_size` })
+    bytec_1 // "bracket_size"
+    // smart_contracts/stupid_racing/contract.algo.ts:128
+    // if (this.registeredCount.value === this.bracketSize.value) {
+    app_global_get_ex
+    assert // check GlobalState exists
+    ==
+    bz registerTeam_after_if_else@3
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:134
+    // this.state.value = STATE_LOCKED
+    intc_3 // 2
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:135
+    // this.vrfCommitRound.value = Global.round + Uint64(16)
+    global Round
+    pushint 16 // 16
+    +
+    // smart_contracts/stupid_racing/contract.algo.ts:65
+    // vrfCommitRound = GlobalState<uint64>({ key: Bytes`vrf_commit_round` })
+    bytec 10 // "vrf_commit_round"
+    // smart_contracts/stupid_racing/contract.algo.ts:135
+    // this.vrfCommitRound.value = Global.round + Uint64(16)
+    swap
+    app_global_put
+
+registerTeam_after_if_else@3:
+    // smart_contracts/stupid_racing/contract.algo.ts:100
+    // @abimethod()
+    intc_1 // 1
+    return
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.closeTournament[routing]() -> void:
+closeTournament:
+    // smart_contracts/stupid_racing/contract.algo.ts:140
+    // assert(Txn.sender === this.admin.value, 'Only admin can close tournament')
+    txn Sender
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:62
+    // admin = GlobalState<Account>({ key: Bytes`admin` })
+    bytec 6 // "admin"
+    // smart_contracts/stupid_racing/contract.algo.ts:140
+    // assert(Txn.sender === this.admin.value, 'Only admin can close tournament')
+    app_global_get_ex
+    assert // check GlobalState exists
+    ==
+    assert // Only admin can close tournament
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:141
+    // this.state.value = STATE_CANCELLED
+    pushint 5 // 5
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:138
+    // @abimethod()
+    intc_1 // 1
+    return
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.getTeam[routing]() -> void:
+getTeam:
+    // smart_contracts/stupid_racing/contract.algo.ts:144
+    // @abimethod({ readonly: true })
+    txna ApplicationArgs 1
+    dup
+    len
+    pushint 32 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // smart_contracts/stupid_racing/contract.algo.ts:67
+    // teams = BoxMap<Account, TeamRegistration>({ keyPrefix: Bytes`t` })
+    bytec 7 // "t"
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:146
+    // assert(this.teams(wallet).exists, 'Team not registered')
+    dup
+    box_len
+    bury 1
+    assert // Team not registered
+    // smart_contracts/stupid_racing/contract.algo.ts:147
+    // return clone(this.teams(wallet).value)
+    box_get
+    pop
+    // smart_contracts/stupid_racing/contract.algo.ts:144
+    // @abimethod({ readonly: true })
+    bytec_2 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.getSlot[routing]() -> void:
+getSlot:
+    // smart_contracts/stupid_racing/contract.algo.ts:150
+    // @abimethod({ readonly: true })
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/stupid_racing/contract.algo.ts:152
+    // assert(this.bracketSlots(slotIndex).exists, 'Slot is empty')
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:68
+    // bracketSlots = BoxMap<uint64, Account>({ keyPrefix: Bytes`s` })
+    bytec 4 // "s"
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:152
+    // assert(this.bracketSlots(slotIndex).exists, 'Slot is empty')
+    dup
+    box_len
+    bury 1
+    assert // Slot is empty
+    // smart_contracts/stupid_racing/contract.algo.ts:153
+    // return this.bracketSlots(slotIndex).value
+    box_get
+    pop
+    // smart_contracts/stupid_racing/contract.algo.ts:150
+    // @abimethod({ readonly: true })
+    bytec_2 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.getTournamentInfo[routing]() -> void:
+getTournamentInfo:
+    // smart_contracts/stupid_racing/contract.algo.ts:164
+    // season: this.season.value,
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:60
+    // season = GlobalState<uint64>({ key: Bytes`season` })
+    bytec 8 // "season"
+    // smart_contracts/stupid_racing/contract.algo.ts:164
+    // season: this.season.value,
+    app_global_get_ex
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:165
+    // bracketSize: this.bracketSize.value,
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:61
+    // bracketSize = GlobalState<uint64>({ key: Bytes`bracket_size` })
+    bytec_1 // "bracket_size"
+    // smart_contracts/stupid_racing/contract.algo.ts:165
+    // bracketSize: this.bracketSize.value,
+    app_global_get_ex
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:166
+    // registeredCount: this.registeredCount.value,
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:64
+    // registeredCount = GlobalState<uint64>({ key: Bytes`registered_count` })
+    bytec_3 // "registered_count"
+    // smart_contracts/stupid_racing/contract.algo.ts:166
+    // registeredCount: this.registeredCount.value,
+    app_global_get_ex
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:167
+    // state: this.state.value,
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:167
+    // state: this.state.value,
+    app_global_get_ex
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:163-168
+    // return {
+    //     season: this.season.value,
+    //     bracketSize: this.bracketSize.value,
+    //     registeredCount: this.registeredCount.value,
+    //     state: this.state.value,
+    // }
+    uncover 3
+    itob
+    uncover 3
+    itob
+    concat
+    uncover 2
+    itob
+    concat
+    swap
+    itob
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:156
+    // @abimethod({ readonly: true })
+    bytec_2 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.getMatchResult[routing]() -> void:
+getMatchResult:
+    // smart_contracts/stupid_racing/contract.algo.ts:171
+    // @abimethod({ readonly: true })
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/stupid_racing/contract.algo.ts:173
+    // assert(this.matchResults(matchId).exists, 'Match result not found')
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:69
+    // matchResults = BoxMap<uint64, MatchResult>({ keyPrefix: Bytes`m` })
+    bytec 5 // "m"
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:173
+    // assert(this.matchResults(matchId).exists, 'Match result not found')
+    dup
+    box_len
+    bury 1
+    assert // Match result not found
+    // smart_contracts/stupid_racing/contract.algo.ts:174
+    // return clone(this.matchResults(matchId).value)
+    box_get
+    pop
+    // smart_contracts/stupid_racing/contract.algo.ts:171
+    // @abimethod({ readonly: true })
+    bytec_2 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.runMatch[routing]() -> void:
+runMatch:
+    intc_0 // 0
+    dupn 6
+    pushbytes ""
+    dupn 15
+    // smart_contracts/stupid_racing/contract.algo.ts:177
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/stupid_racing/contract.algo.ts:180
+    // this.state.value === STATE_LOCKED || this.state.value === STATE_RACING,
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:180
+    // this.state.value === STATE_LOCKED || this.state.value === STATE_RACING,
+    app_global_get_ex
+    assert // check GlobalState exists
+    intc_3 // 2
+    ==
+    bnz runMatch_bool_true@3
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:180
+    // this.state.value === STATE_LOCKED || this.state.value === STATE_RACING,
+    app_global_get_ex
+    assert // check GlobalState exists
+    pushint 3 // 3
+    ==
+    bz runMatch_bool_false@4
+
+runMatch_bool_true@3:
+    intc_1 // 1
+
+runMatch_bool_merge@5:
+    // smart_contracts/stupid_racing/contract.algo.ts:179-182
+    // assert(
+    //     this.state.value === STATE_LOCKED || this.state.value === STATE_RACING,
+    //     'Tournament not ready'
+    // )
+    assert // Tournament not ready
+    // smart_contracts/stupid_racing/contract.algo.ts:183
+    // assert(Global.round >= this.vrfCommitRound.value, 'VRF round not reached')
+    global Round
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:65
+    // vrfCommitRound = GlobalState<uint64>({ key: Bytes`vrf_commit_round` })
+    bytec 10 // "vrf_commit_round"
+    // smart_contracts/stupid_racing/contract.algo.ts:183
+    // assert(Global.round >= this.vrfCommitRound.value, 'VRF round not reached')
+    app_global_get_ex
+    assert // check GlobalState exists
+    swap
+    dig 1
+    >=
+    assert // VRF round not reached
+    // smart_contracts/stupid_racing/contract.algo.ts:185
+    // const matchId: uint64 = roundIndex * Uint64(100) + matchIndex
+    dig 2
+    dup
+    cover 2
+    pushint 100 // 100
+    *
+    dig 3
+    +
+    // smart_contracts/stupid_racing/contract.algo.ts:186
+    // assert(!this.matchResults(matchId).exists, 'Match already played')
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:69
+    // matchResults = BoxMap<uint64, MatchResult>({ keyPrefix: Bytes`m` })
+    bytec 5 // "m"
+    dig 1
+    concat
+    dup
+    bury 29
+    // smart_contracts/stupid_racing/contract.algo.ts:186
+    // assert(!this.matchResults(matchId).exists, 'Match already played')
+    box_len
+    bury 1
+    !
+    assert // Match already played
+    // smart_contracts/stupid_racing/contract.algo.ts:192
+    // const saltLenPrefix = op.extract(saltLenBytes, Uint64(6), Uint64(2))
+    pushbytes 0x0008
+    // smart_contracts/stupid_racing/contract.algo.ts:193
+    // const encodedSalt = op.concat(saltLenPrefix, matchSalt)
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:195-203
+    // const result = itxn.applicationCall({
+    //     appId: this.beaconAppId.value,
+    //     appArgs: [
+    //         arc4.methodSelector('must_get(uint64,byte[])byte[]'),
+    //         op.itob(this.vrfCommitRound.value), // uint64 is just 8 bytes in ARC-4
+    //         encodedSalt
+    //     ],
+    //     fee: Uint64(0), // Fee pooling expected
+    // }).submit()
+    itxn_begin
+    // smart_contracts/stupid_racing/contract.algo.ts:196
+    // appId: this.beaconAppId.value,
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:59
+    // beaconAppId = GlobalState<uint64>({ key: Bytes`beacon_app_id` })
+    bytec 9 // "beacon_app_id"
+    // smart_contracts/stupid_racing/contract.algo.ts:196
+    // appId: this.beaconAppId.value,
+    app_global_get_ex
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:199
+    // op.itob(this.vrfCommitRound.value), // uint64 is just 8 bytes in ARC-4
+    uncover 2
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:198
+    // arc4.methodSelector('must_get(uint64,byte[])byte[]'),
+    pushbytes 0x47c20c23 // method "must_get(uint64,byte[])byte[]"
+    itxn_field ApplicationArgs
+    itxn_field ApplicationArgs
+    itxn_field ApplicationID
+    itxn_field ApplicationArgs
+    // smart_contracts/stupid_racing/contract.algo.ts:195-203
+    // const result = itxn.applicationCall({
+    //     appId: this.beaconAppId.value,
+    //     appArgs: [
+    //         arc4.methodSelector('must_get(uint64,byte[])byte[]'),
+    //         op.itob(this.vrfCommitRound.value), // uint64 is just 8 bytes in ARC-4
+    //         encodedSalt
+    //     ],
+    //     fee: Uint64(0), // Fee pooling expected
+    // }).submit()
+    pushint 6 // 6
+    itxn_field TypeEnum
+    // smart_contracts/stupid_racing/contract.algo.ts:202
+    // fee: Uint64(0), // Fee pooling expected
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/stupid_racing/contract.algo.ts:195-203
+    // const result = itxn.applicationCall({
+    //     appId: this.beaconAppId.value,
+    //     appArgs: [
+    //         arc4.methodSelector('must_get(uint64,byte[])byte[]'),
+    //         op.itob(this.vrfCommitRound.value), // uint64 is just 8 bytes in ARC-4
+    //         encodedSalt
+    //     ],
+    //     fee: Uint64(0), // Fee pooling expected
+    // }).submit()
+    itxn_submit
+    itxn LastLog
+    // smart_contracts/stupid_racing/contract.algo.ts:208
+    // const vrfOutput = op.extract(rawLog, Uint64(6), Uint64(32))
+    extract 6 32
+    bury 20
+    // smart_contracts/stupid_racing/contract.algo.ts:214
+    // if (roundIndex === Uint64(0)) {
+    bnz runMatch_else_body@8
+    // smart_contracts/stupid_racing/contract.algo.ts:215
+    // leftWallet = this.bracketSlots(matchIndex * Uint64(2)).value
+    dup
+    intc_3 // 2
+    *
+    dup
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:68
+    // bracketSlots = BoxMap<uint64, Account>({ keyPrefix: Bytes`s` })
+    bytec 4 // "s"
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:215
+    // leftWallet = this.bracketSlots(matchIndex * Uint64(2)).value
+    box_get
+    swap
+    bury 24
+    assert // Box must have value
+    // smart_contracts/stupid_racing/contract.algo.ts:216
+    // rightWallet = this.bracketSlots(matchIndex * Uint64(2) + Uint64(1)).value
+    intc_1 // 1
+    +
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:68
+    // bracketSlots = BoxMap<uint64, Account>({ keyPrefix: Bytes`s` })
+    bytec 4 // "s"
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:216
+    // rightWallet = this.bracketSlots(matchIndex * Uint64(2) + Uint64(1)).value
+    box_get
+    swap
+    bury 21
+    assert // Box must have value
+
+runMatch_after_if_else@9:
+    // smart_contracts/stupid_racing/contract.algo.ts:249
+    // let leftWins: uint64 = Uint64(0)
+    intc_0 // 0
+    bury 13
+    // smart_contracts/stupid_racing/contract.algo.ts:250
+    // let rightWins: uint64 = Uint64(0)
+    intc_0 // 0
+    bury 7
+    // smart_contracts/stupid_racing/contract.algo.ts:253
+    // for (let i = Uint64(0); i < Uint64(5); i = i + Uint64(1)) {
+    intc_0 // 0
+    bury 18
+    dig 18
+    bury 24
+
+runMatch_while_top@25:
+    // smart_contracts/stupid_racing/contract.algo.ts:253
+    // for (let i = Uint64(0); i < Uint64(5); i = i + Uint64(1)) {
+    dig 17
+    pushint 5 // 5
+    <
+    bz runMatch_after_while@76
+    // smart_contracts/stupid_racing/contract.algo.ts:254
+    // const heatRand = op.sha256(currentSeed)
+    dig 23
+    sha256
+    bury 23
+    // smart_contracts/stupid_racing/contract.algo.ts:272
+    // let leftPos = START_POS
+    pushint 50 // 50
+    bury 14
+    // smart_contracts/stupid_racing/contract.algo.ts:273
+    // let rightPos = START_POS
+    pushint 50 // 50
+    bury 8
+    // smart_contracts/stupid_racing/contract.algo.ts:274
+    // let status = Uint64(0) // 0=running/draw
+    intc_0 // 0
+    bury 5
+    // smart_contracts/stupid_racing/contract.algo.ts:277
+    // for (let step = Uint64(0); step < Uint64(16); step = step + Uint64(1)) {
+    intc_0 // 0
+    bury 4
+
+runMatch_while_top@27:
+    // smart_contracts/stupid_racing/contract.algo.ts:277
+    // for (let step = Uint64(0); step < Uint64(16); step = step + Uint64(1)) {
+    dig 3
+    pushint 16 // 16
+    <
+    bz runMatch_block@70
+    // smart_contracts/stupid_racing/contract.algo.ts:278
+    // const leftByte: uint64 = op.getByte(randomness, step * Uint64(2))
+    dig 3
+    intc_3 // 2
+    *
+    dig 23
+    dup
+    cover 2
+    dig 1
+    getbyte
+    // smart_contracts/stupid_racing/contract.algo.ts:279
+    // const rightByte: uint64 = op.getByte(randomness, step * Uint64(2) + Uint64(1))
+    swap
+    intc_1 // 1
+    +
+    uncover 2
+    swap
+    getbyte
+    bury 12
+    // smart_contracts/stupid_racing/contract.algo.ts:282
+    // const lMod: uint64 = leftByte % Uint64(5)
+    pushint 5 // 5
+    %
+    dup
+    bury 18
+    // smart_contracts/stupid_racing/contract.algo.ts:283
+    // if (lMod === Uint64(0)) leftPos = leftPos - Uint64(5)
+    bnz runMatch_else_body@30
+    dig 13
+    pushint 5 // 5
+    -
+    bury 14
+
+runMatch_after_if_else@42:
+    // smart_contracts/stupid_racing/contract.algo.ts:289
+    // const rMod: uint64 = rightByte % Uint64(5)
+    dig 10
+    pushint 5 // 5
+    %
+    dup
+    bury 13
+    // smart_contracts/stupid_racing/contract.algo.ts:290
+    // if (rMod === Uint64(0)) rightPos = rightPos - Uint64(5)
+    bnz runMatch_else_body@44
+    dig 7
+    pushint 5 // 5
+    -
+    bury 8
+
+runMatch_after_if_else@56:
+    // smart_contracts/stupid_racing/contract.algo.ts:296
+    // const leftFinish = leftPos >= FINISH_THRESHOLD
+    dig 13
+    dup
+    pushint 71 // 71
+    >=
+    dup
+    cover 2
+    bury 17
+    // smart_contracts/stupid_racing/contract.algo.ts:297
+    // const rightFinish = rightPos >= FINISH_THRESHOLD
+    dig 9
+    dup
+    cover 2
+    pushint 71 // 71
+    >=
+    bury 12
+    // smart_contracts/stupid_racing/contract.algo.ts:298
+    // const leftCliff = leftPos <= CLIFF_THRESHOLD
+    pushint 50 // 50
+    <=
+    bury 18
+    // smart_contracts/stupid_racing/contract.algo.ts:299
+    // const rightCliff = rightPos <= CLIFF_THRESHOLD
+    pushint 50 // 50
+    <=
+    bury 11
+    // smart_contracts/stupid_racing/contract.algo.ts:301
+    // if (leftFinish && rightFinish) { status = Uint64(0); break } // Draw (tie)
+    bz runMatch_after_if_else@59
+    dig 8
+    bz runMatch_after_if_else@59
+    intc_0 // 0
+    bury 5
+
+runMatch_block@70:
+    // smart_contracts/stupid_racing/contract.algo.ts:256
+    // if (outcome === Uint64(1)) leftWins = leftWins + Uint64(1)
+    dig 4
+    intc_1 // 1
+    ==
+    bz runMatch_else_body@72
+    dig 12
+    intc_1 // 1
+    +
+    bury 13
+
+runMatch_after_if_else@75:
+    // smart_contracts/stupid_racing/contract.algo.ts:253
+    // for (let i = Uint64(0); i < Uint64(5); i = i + Uint64(1)) {
+    dig 17
+    intc_1 // 1
+    +
+    bury 18
+    dig 22
+    bury 24
+    b runMatch_while_top@25
+
+runMatch_else_body@72:
+    // smart_contracts/stupid_racing/contract.algo.ts:257
+    // else if (outcome === Uint64(2)) rightWins = rightWins + Uint64(1)
+    dig 4
+    intc_3 // 2
+    ==
+    bz runMatch_after_if_else@75
+    dig 6
+    intc_1 // 1
+    +
+    bury 7
+    b runMatch_after_if_else@75
+
+runMatch_after_if_else@59:
+    // smart_contracts/stupid_racing/contract.algo.ts:302
+    // if (leftCliff && rightCliff) { status = Uint64(0); break } // Draw (both dead)
+    dig 15
+    bz runMatch_after_if_else@62
+    dig 9
+    bz runMatch_after_if_else@62
+    intc_0 // 0
+    bury 5
+    b runMatch_block@70
+
+runMatch_after_if_else@62:
+    // smart_contracts/stupid_racing/contract.algo.ts:303
+    // if (leftFinish || rightCliff) { status = Uint64(1); break } // Left wins
+    dig 14
+    bnz runMatch_if_body@64
+    dig 9
+    bz runMatch_after_if_else@65
+
+runMatch_if_body@64:
+    // smart_contracts/stupid_racing/contract.algo.ts:303
+    // if (leftFinish || rightCliff) { status = Uint64(1); break } // Left wins
+    intc_1 // 1
+    bury 5
+    b runMatch_block@70
+
+runMatch_after_if_else@65:
+    // smart_contracts/stupid_racing/contract.algo.ts:304
+    // if (rightFinish || leftCliff) { status = Uint64(2); break } // Right wins
+    dig 8
+    bnz runMatch_if_body@67
+    dig 15
+    bz runMatch_after_if_else@68
+
+runMatch_if_body@67:
+    // smart_contracts/stupid_racing/contract.algo.ts:304
+    // if (rightFinish || leftCliff) { status = Uint64(2); break } // Right wins
+    intc_3 // 2
+    bury 5
+    b runMatch_block@70
+
+runMatch_after_if_else@68:
+    // smart_contracts/stupid_racing/contract.algo.ts:277
+    // for (let step = Uint64(0); step < Uint64(16); step = step + Uint64(1)) {
+    dig 3
+    intc_1 // 1
+    +
+    bury 4
+    b runMatch_while_top@27
+
+runMatch_else_body@44:
+    // smart_contracts/stupid_racing/contract.algo.ts:291
+    // else if (rMod === Uint64(1)) rightPos = rightPos - Uint64(3)
+    dig 11
+    intc_1 // 1
+    ==
+    bz runMatch_else_body@46
+    dig 7
+    pushint 3 // 3
+    -
+    bury 8
+    b runMatch_after_if_else@56
+
+runMatch_else_body@46:
+    // smart_contracts/stupid_racing/contract.algo.ts:292
+    // else if (rMod === Uint64(2)) rightPos = rightPos - Uint64(1)
+    dig 11
+    intc_3 // 2
+    ==
+    bz runMatch_else_body@48
+    dig 7
+    intc_1 // 1
+    -
+    bury 8
+    b runMatch_after_if_else@56
+
+runMatch_else_body@48:
+    // smart_contracts/stupid_racing/contract.algo.ts:293
+    // else if (rMod === Uint64(3)) rightPos = rightPos + Uint64(3)
+    dig 11
+    pushint 3 // 3
+    ==
+    bz runMatch_else_body@50
+    dig 7
+    pushint 3 // 3
+    +
+    bury 8
+    b runMatch_after_if_else@56
+
+runMatch_else_body@50:
+    // smart_contracts/stupid_racing/contract.algo.ts:294
+    // else if (rMod === Uint64(4)) rightPos = rightPos + Uint64(5)
+    dig 11
+    pushint 4 // 4
+    ==
+    bz runMatch_after_if_else@56
+    dig 7
+    pushint 5 // 5
+    +
+    bury 8
+    b runMatch_after_if_else@56
+
+runMatch_else_body@30:
+    // smart_contracts/stupid_racing/contract.algo.ts:284
+    // else if (lMod === Uint64(1)) leftPos = leftPos - Uint64(3)
+    dig 16
+    intc_1 // 1
+    ==
+    bz runMatch_else_body@32
+    dig 13
+    pushint 3 // 3
+    -
+    bury 14
+    b runMatch_after_if_else@42
+
+runMatch_else_body@32:
+    // smart_contracts/stupid_racing/contract.algo.ts:285
+    // else if (lMod === Uint64(2)) leftPos = leftPos - Uint64(1)
+    dig 16
+    intc_3 // 2
+    ==
+    bz runMatch_else_body@34
+    dig 13
+    intc_1 // 1
+    -
+    bury 14
+    b runMatch_after_if_else@42
+
+runMatch_else_body@34:
+    // smart_contracts/stupid_racing/contract.algo.ts:286
+    // else if (lMod === Uint64(3)) leftPos = leftPos + Uint64(3)
+    dig 16
+    pushint 3 // 3
+    ==
+    bz runMatch_else_body@36
+    dig 13
+    pushint 3 // 3
+    +
+    bury 14
+    b runMatch_after_if_else@42
+
+runMatch_else_body@36:
+    // smart_contracts/stupid_racing/contract.algo.ts:287
+    // else if (lMod === Uint64(4)) leftPos = leftPos + Uint64(5)
+    dig 16
+    pushint 4 // 4
+    ==
+    bz runMatch_after_if_else@42
+    dig 13
+    pushint 5 // 5
+    +
+    bury 14
+    b runMatch_after_if_else@42
+
+runMatch_after_while@76:
+    // smart_contracts/stupid_racing/contract.algo.ts:262
+    // let winnerIsLeft = leftWins > rightWins
+    dig 12
+    dup
+    dig 8
+    dup
+    cover 3
+    >
+    bury 5
+    // smart_contracts/stupid_racing/contract.algo.ts:263
+    // if (leftWins === rightWins) {
+    ==
+    bz runMatch_after_if_else@78
+    // smart_contracts/stupid_racing/contract.algo.ts:264
+    // const lastByte: uint64 = op.getByte(currentSeed, Uint64(0))
+    dig 23
+    intc_0 // 0
+    getbyte
+    // smart_contracts/stupid_racing/contract.algo.ts:265
+    // winnerIsLeft = lastByte % Uint64(2) === Uint64(0)
+    intc_3 // 2
+    %
+    !
+    bury 3
+
+runMatch_after_if_else@78:
+    // smart_contracts/stupid_racing/contract.algo.ts:268
+    // return { winnerIsLeft, leftScore: leftWins, rightScore: rightWins }
+    pushbytes 0x00
+    intc_0 // 0
+    dig 4
+    setbit
+    dig 13
+    itob
+    concat
+    dig 7
+    itob
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:231
+    // winner: map.winnerIsLeft ? leftWallet : rightWallet,
+    dup
+    intc_0 // 0
+    getbit
+    dig 21
+    dup
+    cover 3
+    dig 25
+    dup
+    cover 4
+    uncover 2
+    select
+    // smart_contracts/stupid_racing/contract.algo.ts:232
+    // leftScore: map.leftScore,
+    dig 1
+    extract 1 8
+    // smart_contracts/stupid_racing/contract.algo.ts:233
+    // rightScore: map.rightScore,
+    uncover 2
+    extract 9 8
+    // smart_contracts/stupid_racing/contract.algo.ts:228-235
+    // const matchResult: MatchResult = {
+    //     leftWallet: leftWallet,
+    //     rightWallet: rightWallet,
+    //     winner: map.winnerIsLeft ? leftWallet : rightWallet,
+    //     leftScore: map.leftScore,
+    //     rightScore: map.rightScore,
+    //     seed: vrfOutput
+    // }
+    uncover 3
+    uncover 4
+    concat
+    uncover 3
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    dig 19
+    dup
+    len
+    itob
+    extract 6 2
+    swap
+    concat
+    swap
+    pushbytes 0x0072
+    concat
+    swap
+    concat
+    dup
+    bury 22
+    // smart_contracts/stupid_racing/contract.algo.ts:237
+    // this.matchResults(matchId).value = clone(matchResult)
+    dig 25
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // smart_contracts/stupid_racing/contract.algo.ts:239
+    // if (this.state.value === STATE_LOCKED) this.state.value = STATE_RACING
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:239
+    // if (this.state.value === STATE_LOCKED) this.state.value = STATE_RACING
+    app_global_get_ex
+    assert // check GlobalState exists
+    intc_3 // 2
+    ==
+    bz runMatch_after_if_else@11
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:239
+    // if (this.state.value === STATE_LOCKED) this.state.value = STATE_RACING
+    pushint 3 // 3
+    app_global_put
+
+runMatch_after_if_else@11:
+    // smart_contracts/stupid_racing/contract.algo.ts:310
+    // const size = this.bracketSize.value
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:61
+    // bracketSize = GlobalState<uint64>({ key: Bytes`bracket_size` })
+    bytec_1 // "bracket_size"
+    // smart_contracts/stupid_racing/contract.algo.ts:310
+    // const size = this.bracketSize.value
+    app_global_get_ex
+    swap
+    dup
+    cover 2
+    bury 8
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:311
+    // if (size === Uint64(8)) return Uint64(3)
+    intc_2 // 8
+    ==
+    bz runMatch_after_if_else@16
+    pushint 3 // 3
+
+runMatch_after_inlined_smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.calculateTotalRounds@23:
+    // smart_contracts/stupid_racing/contract.algo.ts:242
+    // if (roundIndex === totalRounds - Uint64(1)) {
+    intc_1 // 1
+    -
+    dig 2
+    ==
+    bz runMatch_after_if_else@13
+    // smart_contracts/stupid_racing/contract.algo.ts:243
+    // this.champion.value = matchResult.winner
+    dig 20
+    extract 64 32
+    // smart_contracts/stupid_racing/contract.algo.ts:66
+    // champion = GlobalState<Account>({ key: Bytes`champion` })
+    bytec 11 // "champion"
+    // smart_contracts/stupid_racing/contract.algo.ts:243
+    // this.champion.value = matchResult.winner
+    swap
+    app_global_put
+    // smart_contracts/stupid_racing/contract.algo.ts:63
+    // state = GlobalState<uint64>({ key: Bytes`state` })
+    bytec_0 // "state"
+    // smart_contracts/stupid_racing/contract.algo.ts:244
+    // this.state.value = STATE_COMPLETED
+    pushint 4 // 4
+    app_global_put
+
+runMatch_after_if_else@13:
+    // smart_contracts/stupid_racing/contract.algo.ts:177
+    // @abimethod()
+    intc_1 // 1
+    return
+
+runMatch_after_if_else@16:
+    // smart_contracts/stupid_racing/contract.algo.ts:312
+    // if (size === Uint64(16)) return Uint64(4)
+    dig 5
+    pushint 16 // 16
+    ==
+    bz runMatch_after_if_else@18
+    pushint 4 // 4
+    // smart_contracts/stupid_racing/contract.algo.ts:241
+    // const totalRounds: uint64 = this.calculateTotalRounds()
+    b runMatch_after_inlined_smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.calculateTotalRounds@23
+
+runMatch_after_if_else@18:
+    // smart_contracts/stupid_racing/contract.algo.ts:313
+    // if (size === Uint64(32)) return Uint64(5)
+    dig 5
+    pushint 32 // 32
+    ==
+    bz runMatch_after_if_else@20
+    pushint 5 // 5
+    // smart_contracts/stupid_racing/contract.algo.ts:241
+    // const totalRounds: uint64 = this.calculateTotalRounds()
+    b runMatch_after_inlined_smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.calculateTotalRounds@23
+
+runMatch_after_if_else@20:
+    // smart_contracts/stupid_racing/contract.algo.ts:314
+    // if (size === Uint64(64)) return Uint64(6)
+    dig 5
+    pushint 64 // 64
+    ==
+    bz runMatch_after_if_else@22
+    pushint 6 // 6
+    // smart_contracts/stupid_racing/contract.algo.ts:241
+    // const totalRounds: uint64 = this.calculateTotalRounds()
+    b runMatch_after_inlined_smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.calculateTotalRounds@23
+
+runMatch_after_if_else@22:
+    // smart_contracts/stupid_racing/contract.algo.ts:315
+    // return Uint64(3)
+    pushint 3 // 3
+    // smart_contracts/stupid_racing/contract.algo.ts:241
+    // const totalRounds: uint64 = this.calculateTotalRounds()
+    b runMatch_after_inlined_smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.calculateTotalRounds@23
+
+runMatch_else_body@8:
+    // smart_contracts/stupid_racing/contract.algo.ts:218
+    // const prevRound: uint64 = roundIndex - Uint64(1)
+    dig 1
+    intc_1 // 1
+    -
+    // smart_contracts/stupid_racing/contract.algo.ts:219
+    // const leftPrevId: uint64 = prevRound * Uint64(100) + matchIndex * Uint64(2)
+    pushint 100 // 100
+    *
+    dig 1
+    intc_3 // 2
+    *
+    +
+    // smart_contracts/stupid_racing/contract.algo.ts:220
+    // const rightPrevId: uint64 = prevRound * Uint64(100) + matchIndex * Uint64(2) + Uint64(1)
+    dup
+    intc_1 // 1
+    +
+    // smart_contracts/stupid_racing/contract.algo.ts:221
+    // leftWallet = clone(this.matchResults(leftPrevId).value).winner
+    swap
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:69
+    // matchResults = BoxMap<uint64, MatchResult>({ keyPrefix: Bytes`m` })
+    bytec 5 // "m"
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:221
+    // leftWallet = clone(this.matchResults(leftPrevId).value).winner
+    pushints 64 32 // 64, 32
+    box_extract
+    bury 23
+    // smart_contracts/stupid_racing/contract.algo.ts:222
+    // rightWallet = clone(this.matchResults(rightPrevId).value).winner
+    itob
+    // smart_contracts/stupid_racing/contract.algo.ts:69
+    // matchResults = BoxMap<uint64, MatchResult>({ keyPrefix: Bytes`m` })
+    bytec 5 // "m"
+    swap
+    concat
+    // smart_contracts/stupid_racing/contract.algo.ts:222
+    // rightWallet = clone(this.matchResults(rightPrevId).value).winner
+    pushints 64 32 // 64, 32
+    box_extract
+    bury 20
+    b runMatch_after_if_else@9
+
+runMatch_bool_false@4:
+    intc_0 // 0
+    b runMatch_bool_merge@5
+
+
+// smart_contracts/stupid_racing/contract.algo.ts::StupidRacingTournament.getChampion[routing]() -> void:
+getChampion:
+    // smart_contracts/stupid_racing/contract.algo.ts:320
+    // return this.champion.value
+    intc_0 // 0
+    // smart_contracts/stupid_racing/contract.algo.ts:66
+    // champion = GlobalState<Account>({ key: Bytes`champion` })
+    bytec 11 // "champion"
+    // smart_contracts/stupid_racing/contract.algo.ts:320
+    // return this.champion.value
+    app_global_get_ex
+    assert // check GlobalState exists
+    // smart_contracts/stupid_racing/contract.algo.ts:318
+    // @abimethod({ readonly: true })
+    bytec_2 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return

@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useWallet } from "@txnlab/use-wallet-react";
+import { useTournamentContract } from "@/hooks/useTournamentContract";
+import { TournamentStatus } from "@/components/TournamentStatus";
 import type { StupidHorseAsset } from "@/lib/stupidhorse";
 import { fetchNfdForAddresses, shortAddress } from "@/lib/nfd";
 
@@ -66,6 +68,7 @@ type BracketMatchResult = {
 
 export default function Home() {
   const { wallets, activeAddress } = useWallet();
+  const contract = useTournamentContract();
   const [ownedHorses, setOwnedHorses] = useState<OwnedHorse[]>([]);
   const [profiles, setProfiles] = useState<Record<number, HorseProfile>>({});
   const [drafts, setDrafts] = useState<
@@ -457,6 +460,39 @@ export default function Home() {
     }
 
     setError(null);
+  };
+
+  const registerTeamOnChain = async () => {
+    if (!contract || !activeAddress) return;
+    if (team.length !== 5) {
+      setError("Select 5 horses first.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const args = {
+        assetId0: BigInt(team[0]),
+        assetId1: BigInt(team[1]),
+        assetId2: BigInt(team[2]),
+        assetId3: BigInt(team[3]),
+        assetId4: BigInt(team[4]),
+      };
+
+      await contract.send.registerTeam({ args });
+
+      // Also save to local DB
+      await saveTeam();
+
+      alert("Registration successful on TestNet!");
+
+    } catch (e: unknown) {
+      console.error(e);
+      const err = e as Error;
+      setError("Registration failed: " + (err.message || String(e)));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetMatch = () => {
@@ -875,6 +911,12 @@ export default function Home() {
           </div>
         </header>
 
+        <div className="flex justify-center -mt-6 sticky top-28 z-10 pointer-events-none">
+          <div className="pointer-events-auto">
+            <TournamentStatus />
+          </div>
+        </div>
+
 
 
 
@@ -1080,6 +1122,14 @@ export default function Home() {
                       onClick={saveTeam}
                     >
                       Lock In Team
+                    </button>
+                    <button
+                      className="rounded-full border border-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/10"
+                      onClick={registerTeamOnChain}
+                      disabled={!contract || !activeAddress}
+                      title={!contract ? "Connecting to TestNet..." : "Submit to Smart Contract"}
+                    >
+                      Step 2: Register on Chain
                     </button>
                     <span className="text-sm text-[var(--muted)]">
                       {team.length}/5 selected

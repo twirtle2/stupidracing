@@ -46,21 +46,32 @@ function buildWallets(): SupportedWallet[] {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const manager = useMemo(() => {
-    const networks = new NetworkConfigBuilder()
-      .mainnet({
+    let builder = new NetworkConfigBuilder();
+
+    if (env.network === "testnet") {
+      builder = builder.testnet({
         algod: {
-          baseServer: env.algodUrl || "http://localhost",
+          baseServer: env.algodUrl || "https://testnet-api.algonode.cloud",
           token: "",
         },
-
+        isTestnet: true,
+      });
+    } else {
+      builder = builder.mainnet({
+        algod: {
+          baseServer: env.algodUrl || "https://mainnet-api.algonode.cloud",
+          token: "",
+        },
         isTestnet: false,
-      })
-      .build();
+      });
+    }
+
+    const networks = builder.build();
 
     return new WalletManager({
       wallets: buildWallets(),
       networks,
-      defaultNetwork: NetworkId.MAINNET,
+      defaultNetwork: env.network === "testnet" ? NetworkId.TESTNET : NetworkId.MAINNET,
     });
   }, []);
 
