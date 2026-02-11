@@ -75,6 +75,7 @@ export default function Home() {
     Record<number, { name: string; description: string }>
   >({});
   const [loading, setLoading] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [team, setTeam] = useState<number[]>([]);
   const [teams, setTeams] = useState<Record<string, TeamEntry>>({});
@@ -470,7 +471,7 @@ export default function Home() {
       return;
     }
     if (!contract) {
-      setError("Contract client not ready — try refreshing the page.");
+      setError("Contract client not ready — check browser console for [TournamentContract] errors and try refreshing.");
       return;
     }
     if (team.length !== 5) {
@@ -478,9 +479,12 @@ export default function Home() {
       return;
     }
 
-    setLoading(true);
+    setRegistering(true);
     setError(null);
     try {
+      // Save team to local DB first
+      await saveTeam();
+
       const args = {
         assetId0: BigInt(team[0]),
         assetId1: BigInt(team[1]),
@@ -492,9 +496,6 @@ export default function Home() {
 
       await contract.send.registerTeam({ args });
 
-      // Also save to local DB
-      await saveTeam();
-
       alert("Registration successful on TestNet!");
 
     } catch (e: unknown) {
@@ -502,7 +503,7 @@ export default function Home() {
       const err = e as Error;
       setError("Registration failed: " + (err.message || String(e)));
     } finally {
-      setLoading(false);
+      setRegistering(false);
     }
   };
 
@@ -1129,17 +1130,12 @@ export default function Home() {
                   </div>
                   <div className="mt-6 flex items-center gap-3">
                     <button
-                      className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black"
-                      onClick={saveTeam}
-                    >
-                      Lock In Team
-                    </button>
-                    <button
-                      className="rounded-full border border-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-30"
+                      className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={registerTeamOnChain}
-                      disabled={loading}
+                      disabled={registering || team.length !== 5}
+                      title={!contract ? "Contract not connected" : !activeAddress ? "Connect wallet first" : team.length !== 5 ? "Select 5 horses" : "Register team on-chain"}
                     >
-                      {loading ? "Registering…" : "Register"}
+                      {registering ? "Registering…" : "Register"}
                     </button>
                     <span className="text-sm text-[var(--muted)]">
                       {team.length}/5 selected

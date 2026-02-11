@@ -12,45 +12,59 @@ export function useTournamentContract() {
     const { activeAccount, signTransactions } = useWallet();
 
     const client = useMemo(() => {
-        if (!APP_ID) return null;
-
-        // Initialize AlgorandClient
-        const algorand = AlgorandClient.fromConfig({
-            algodConfig: {
-                server: ALGOD_SERVER,
-                port: 443,
-                token: '',
-            },
-            indexerConfig: {
-                server: INDEXER_SERVER,
-                port: 443,
-                token: '',
-            },
+        console.log("[TournamentContract] init", {
+            APP_ID: APP_ID.toString(),
+            hasActiveAccount: !!activeAccount,
+            address: activeAccount?.address,
         });
 
-        // If account is connected, register the signer and set default sender
-        if (activeAccount) {
-            const signer: TransactionSigner = async (txns: Transaction[], indexesToSign?: number[]) => {
-                const encodedTxns = txns.map(t => t.toByte());
-                const result = await signTransactions(encodedTxns, indexesToSign);
-
-                if (result.some(r => r === null)) {
-                    throw new Error("Failed to sign all transactions");
-                }
-                return result as Uint8Array[];
-            };
-
-            // In algokit-utils v7+, register the signer with the AlgorandClient's account manager
-            algorand.account.setSigner(activeAccount.address, signer);
+        if (!APP_ID) {
+            console.warn("[TournamentContract] APP_ID is 0 — check NEXT_PUBLIC_TOURNAMENT_APP_ID env var");
+            return null;
         }
 
-        // Instantiate the typed client using the correct AppClientParams for v7+
-        // Note: 'sender' is replaced by 'defaultSender' and signer is registered above
-        return new StupidRacingTournamentClient({
-            appId: APP_ID,
-            algorand,
-            defaultSender: activeAccount?.address,
-        });
+        try {
+            // Initialize AlgorandClient
+            const algorand = AlgorandClient.fromConfig({
+                algodConfig: {
+                    server: ALGOD_SERVER,
+                    port: 443,
+                    token: '',
+                },
+                indexerConfig: {
+                    server: INDEXER_SERVER,
+                    port: 443,
+                    token: '',
+                },
+            });
+
+            // If account is connected, register the signer and set default sender
+            if (activeAccount) {
+                const signer: TransactionSigner = async (txns: Transaction[], indexesToSign?: number[]) => {
+                    const encodedTxns = txns.map(t => t.toByte());
+                    const result = await signTransactions(encodedTxns, indexesToSign);
+
+                    if (result.some(r => r === null)) {
+                        throw new Error("Failed to sign all transactions");
+                    }
+                    return result as Uint8Array[];
+                };
+
+                algorand.account.setSigner(activeAccount.address, signer);
+            }
+
+            const tournamentClient = new StupidRacingTournamentClient({
+                appId: APP_ID,
+                algorand,
+                defaultSender: activeAccount?.address,
+            });
+
+            console.log("[TournamentContract] client created successfully");
+            return tournamentClient;
+        } catch (err) {
+            console.error("[TournamentContract] failed to create client:", err);
+            return null;
+        }
     }, [activeAccount, signTransactions]);
 
     return client;
