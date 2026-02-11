@@ -65,7 +65,7 @@ export function useTournamentContract() {
             console.error("[TournamentContract] failed to create client:", err);
             return null;
         }
-    }, [activeAccount, signTransactions]);
+    }, [activeAccount?.address, signTransactions]);
 
     return client;
 }
