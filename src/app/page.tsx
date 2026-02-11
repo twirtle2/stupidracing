@@ -1171,7 +1171,7 @@ export default function Home() {
         {view === "bracket" && (
           <div className="space-y-10">
             <section className={`grid gap-6 ${isAdmin ? "lg:grid-cols-1" : "lg:grid-cols-[1fr_1fr]"}`}>
-              {!isAdmin && (
+              {!isAdmin && activeAddress && (
                 <div className="rounded-3xl border border-white/10 bg-black/40 p-6">
                   <h2 className="text-2xl">Tournament Team</h2>
                   <p className="text-sm text-[var(--muted)]">
@@ -1204,18 +1204,25 @@ export default function Home() {
               )}
             </section>
 
-            <section
-              id="bracket"
-              className="rounded-3xl border border-white/10 bg-black/40 p-8"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
-                <div className="flex flex-col gap-1">
-                  <h2 className="text-3xl font-black uppercase tracking-tighter">Tournament Hub</h2>
-                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--muted)]">
-                    Season {SEASON} • {bracketSize} Teams • One Champion
-                  </p>
+            <section className="space-y-6">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h2 className="text-3xl font-black uppercase italic tracking-tighter text-[var(--accent)]">
+                    Tournament Hub
+                  </h2>
+                  <div className="mt-1 flex items-center gap-3 text-xs font-bold tracking-widest text-[var(--muted)]">
+                    <span>Season {SEASON}</span>
+                    <span>•</span>
+                    <span>{bracketSize} Teams</span>
+                    <span>•</span>
+                    <span>One Champion</span>
+                  </div>
+                  {!contract && (
+                    <div className="mt-2 text-xs text-red-400 bg-red-900/20 px-2 py-1 rounded inline-block">
+                      Contract not connected (Check Env Vars)
+                    </div>
+                  )}
                 </div>
-
                 <div className="flex border-b border-white/5">
                   {[
                     { id: "assign", label: "1. Assign" },

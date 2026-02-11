@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -12,7 +12,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing address" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  // Use admin client if available to bypass RLS for public reads
+  const client = supabaseAdmin || supabase;
+
+  const { data, error } = await client
     .from("team_entries")
     .select("asset_ids,season,created_at")
     .eq("wallet_address", address)

@@ -8,6 +8,8 @@ export const env = {
   magicApiKey: process.env.NEXT_PUBLIC_MAGIC_API_KEY ?? "",
   web3AuthClientId: process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID ?? "",
   appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  // Server-side only
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
 };
 
 export const appMetadata = {
