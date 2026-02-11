@@ -1,5 +1,7 @@
 import { env } from "@/lib/config";
 
+export const MAINNET_INDEXER_URL = "https://mainnet-idx.algonode.cloud";
+
 export type IndexerAccountAsset = {
   "asset-id": number;
   amount: number;
@@ -18,15 +20,14 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
   return fetch(url, options);
 }
 
-
-export async function fetchAccountAssets(address: string) {
+export async function fetchAccountAssets(address: string, indexerUrl?: string) {
   const assets: IndexerAccountAsset[] = [];
   let nextToken: string | undefined;
 
   do {
-    const baseUrl = env.indexerUrl || "http://localhost";
+    const host = indexerUrl || env.indexerUrl || "http://localhost";
     const url = new URL(
-      `${baseUrl.replace(/\/$/, "")}/v2/accounts/${address}/assets`
+      `${host.replace(/\/$/, "")}/v2/accounts/${address}/assets`
     );
 
     url.searchParams.set("limit", "1000");
@@ -62,13 +63,13 @@ export type IndexerAsset = {
   };
 };
 
-export async function fetchCreatorAssets(creator: string) {
+export async function fetchCreatorAssets(creator: string, indexerUrl?: string) {
   const assets: IndexerAsset[] = [];
   let nextToken: string | undefined;
 
   do {
-    const baseUrl = env.indexerUrl || "http://localhost";
-    const url = new URL(`${baseUrl.replace(/\/$/, "")}/v2/assets`);
+    const host = indexerUrl || env.indexerUrl || "http://localhost";
+    const url = new URL(`${host.replace(/\/$/, "")}/v2/assets`);
 
     url.searchParams.set("creator", creator);
     url.searchParams.set("limit", "1000");
@@ -116,9 +117,9 @@ function decodeArc69(note?: string) {
   }
 }
 
-export async function fetchArc69Metadata(assetId: number) {
-  const baseUrl = env.indexerUrl || "http://localhost";
-  const url = new URL(`${baseUrl.replace(/\/$/, "")}/v2/transactions`);
+export async function fetchArc69Metadata(assetId: number, indexerUrl?: string) {
+  const host = indexerUrl || env.indexerUrl || "http://localhost";
+  const url = new URL(`${host.replace(/\/$/, "")}/v2/transactions`);
   url.searchParams.set("asset-id", String(assetId));
 
   url.searchParams.set("tx-type", "acfg");
@@ -148,9 +149,9 @@ export async function fetchArc69Metadata(assetId: number) {
   return null;
 }
 
-export async function fetchAsset(assetId: number) {
-  const baseUrl = env.indexerUrl || "http://localhost";
-  const url = `${baseUrl.replace(/\/$/, "")}/v2/assets/${assetId}`;
+export async function fetchAsset(assetId: number, indexerUrl?: string) {
+  const host = indexerUrl || env.indexerUrl || "http://localhost";
+  const url = `${host.replace(/\/$/, "")}/v2/assets/${assetId}`;
 
   const response = await fetchWithRetry(url, { cache: "no-store" });
   if (!response.ok) {
