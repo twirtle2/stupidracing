@@ -463,13 +463,23 @@ export default function Home() {
   };
 
   const registerTeamOnChain = async () => {
-    if (!contract || !activeAddress) return;
+    console.log("[Register] clicked", { activeAddress, contract: !!contract, teamLen: team.length });
+
+    if (!activeAddress) {
+      setError("Connect your wallet first (tap 'Connect Wallet' in the header).");
+      return;
+    }
+    if (!contract) {
+      setError("Contract client not ready — try refreshing the page.");
+      return;
+    }
     if (team.length !== 5) {
-      setError("Select 5 horses first.");
+      setError("Select exactly 5 horses before registering.");
       return;
     }
 
     setLoading(true);
+    setError(null);
     try {
       const args = {
         assetId0: BigInt(team[0]),
@@ -478,6 +488,7 @@ export default function Home() {
         assetId3: BigInt(team[3]),
         assetId4: BigInt(team[4]),
       };
+      console.log("[Register] sending registerTeam", args);
 
       await contract.send.registerTeam({ args });
 
@@ -487,7 +498,7 @@ export default function Home() {
       alert("Registration successful on TestNet!");
 
     } catch (e: unknown) {
-      console.error(e);
+      console.error("[Register] error:", e);
       const err = e as Error;
       setError("Registration failed: " + (err.message || String(e)));
     } finally {
@@ -1124,12 +1135,11 @@ export default function Home() {
                       Lock In Team
                     </button>
                     <button
-                      className="rounded-full border border-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/10"
+                      className="rounded-full border border-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-30"
                       onClick={registerTeamOnChain}
-                      disabled={!contract || !activeAddress}
-                      title={!contract ? "Connecting to TestNet..." : "Submit to Smart Contract"}
+                      disabled={loading}
                     >
-                      Step 2: Register on Chain
+                      {loading ? "Registering…" : "Register"}
                     </button>
                     <span className="text-sm text-[var(--muted)]">
                       {team.length}/5 selected
