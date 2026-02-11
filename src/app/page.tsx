@@ -398,6 +398,62 @@ export default function Home() {
   }, [stableAddress, activeAddress, loadTeamForAddress, refreshTrigger, view]);
 
 
+  // Poll contract for global tournament state
+  useEffect(() => {
+    if (!contract) return;
+    let mounted = true;
+
+    const fetchContractState = async () => {
+      try {
+        console.log("[Contract] Fetching tournament info...");
+        const info = await contract.getTournamentInfo({ args: [] });
+        const size = Number(info.registeredCount);
+        const totalSlots = Number(info.bracketSize);
+
+        if (mounted) {
+          if ([8, 16, 32].includes(totalSlots)) {
+            setBracketSize(totalSlots as 8 | 16 | 32);
+          }
+        }
+
+        const slotPromises = [];
+        for (let i = 0; i < size; i++) {
+          slotPromises.push(contract.getSlot({ args: { slotIndex: BigInt(i) } }));
+        }
+
+        const slotAddresses = await Promise.all(slotPromises);
+
+        if (mounted) {
+          setBracketSlots((prev) => {
+            const next = Array(totalSlots).fill("");
+            slotAddresses.forEach((addr, i) => {
+              next[i] = addr;
+            });
+            return next;
+          });
+
+          // Fetch teams for these addresses
+          const teamPromises = slotAddresses.map((addr) => loadTeamForAddress(addr));
+          const teamResults = await Promise.all(teamPromises);
+
+          setTeams((prev) => {
+            const next = { ...prev };
+            slotAddresses.forEach((addr, i) => {
+              if (teamResults[i]) next[addr] = teamResults[i];
+            });
+            return next;
+          });
+          console.log(`[Contract] Synced ${size} slots`);
+        }
+      } catch (e) {
+        console.error("[Contract] Failed to sync state:", e);
+      }
+    };
+
+    fetchContractState();
+  }, [contract, refreshTrigger, loadTeamForAddress]);
+
+
   const setBracketSlotInput = (slotIndex: number, address: string) => {
     setBracketSlots((prev) => {
       const next = [...prev];
@@ -497,6 +553,9 @@ export default function Home() {
       await contract.send.registerTeam({ args });
 
       alert("Registration successful on TestNet!");
+
+      // Refresh global state
+      setRefreshTrigger((prev) => prev + 1);
 
     } catch (e: unknown) {
       console.error("[Register] error:", e);
