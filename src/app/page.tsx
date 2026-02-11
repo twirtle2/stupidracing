@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { useTournamentContract } from "@/hooks/useTournamentContract";
-import { TournamentStatus } from "@/components/TournamentStatus";
+
 import type { StupidHorseAsset } from "@/lib/stupidhorse";
 import { fetchNfdForAddresses, shortAddress } from "@/lib/nfd";
 
@@ -925,7 +925,7 @@ export default function Home() {
 
         <div className="flex justify-center -mt-6 sticky top-28 z-10 pointer-events-none">
           <div className="pointer-events-auto">
-            <TournamentStatus />
+
           </div>
         </div>
 
