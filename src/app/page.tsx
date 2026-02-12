@@ -66,6 +66,8 @@ type BracketMatchResult = {
 };
 
 
+const READ_ONLY_SENDER = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+
 export default function Home() {
   const { wallets, activeAddress } = useWallet();
   const contract = useTournamentContract();
@@ -406,7 +408,10 @@ export default function Home() {
     const fetchContractState = async () => {
       try {
         console.log("[Contract] Fetching tournament info...");
-        const info = await contract.getTournamentInfo({ args: [] });
+        // Use active address or dummy sender for read-only simulation
+        const sender = activeAddress || READ_ONLY_SENDER;
+
+        const info = await contract.getTournamentInfo({ sender, args: [] });
         const size = Number(info.registeredCount);
         const totalSlots = Number(info.bracketSize);
 
@@ -418,7 +423,7 @@ export default function Home() {
 
         const slotPromises = [];
         for (let i = 0; i < size; i++) {
-          slotPromises.push(contract.getSlot({ args: { slotIndex: BigInt(i) } }));
+          slotPromises.push(contract.getSlot({ sender, args: { slotIndex: BigInt(i) } }));
         }
 
         const slotAddresses = await Promise.all(slotPromises);
