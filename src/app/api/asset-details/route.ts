@@ -39,9 +39,29 @@ export async function POST(req: Request) {
         ])
     );
 
-    const assets = body.assetIds
-      .map((id) => assetMap.get(id))
-      .filter((asset) => asset !== undefined);
+    const assets = await Promise.all(
+      body.assetIds.map(async (id) => {
+        const mapped = assetMap.get(id);
+        if (mapped) return mapped;
+
+        // Fallback: fetch individual asset from indexer
+        try {
+          const { fetchAsset } = await import("@/lib/indexer");
+          const asset = await fetchAsset(id);
+          if (asset) {
+            return {
+              assetId: asset.index,
+              name: asset.params.name ?? `Horse ${asset.index}`,
+              unitName: asset.params["unit-name"] ?? "",
+              imageUrl: resolveIpfsUrl(asset.params.url),
+            };
+          }
+        } catch (e) {
+          console.error(`Failed to fetch asset ${id}`, e);
+        }
+        return undefined;
+      })
+    ).then(res => res.filter((a): a is NonNullable<typeof a> => a !== undefined));
 
     const withMetadata = body.includeMetadata
       ? await Promise.all(

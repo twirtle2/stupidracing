@@ -75,11 +75,13 @@ export class StupidRacingTournament extends arc4.Contract {
         beaconAppId: uint64
     ): void {
         assert(
+            bracketSize === Uint64(2) ||
+            bracketSize === Uint64(4) ||
             bracketSize === Uint64(8) ||
             bracketSize === Uint64(16) ||
             bracketSize === Uint64(32) ||
             bracketSize === Uint64(64),
-            'Bracket size must be 8, 16, 32, or 64'
+            'Bracket size must be 2, 4, 8, 16, 32, or 64'
         )
 
         this.season.value = season
@@ -308,11 +310,13 @@ export class StupidRacingTournament extends arc4.Contract {
 
     private calculateTotalRounds(): uint64 {
         const size = this.bracketSize.value
+        if (size === Uint64(2)) return Uint64(1)
+        if (size === Uint64(4)) return Uint64(2)
         if (size === Uint64(8)) return Uint64(3)
         if (size === Uint64(16)) return Uint64(4)
         if (size === Uint64(32)) return Uint64(5)
         if (size === Uint64(64)) return Uint64(6)
-        return Uint64(3)
+        return Uint64(1)
     }
 
     @abimethod({ readonly: true })

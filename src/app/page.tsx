@@ -97,8 +97,10 @@ export default function Home() {
   });
   const [matchStatus, setMatchStatus] = useState<string>("ready");
   const [matchHistory, setMatchHistory] = useState<MatchResult[]>([]);
-  const [bracketSize, setBracketSize] = useState<8 | 16 | 32>(8);
+  const [bracketSize, setBracketSize] = useState<2 | 4 | 8 | 16 | 32>(8);
   const [bracketSlots, setBracketSlots] = useState<string[]>(Array(8).fill(""));
+  const syncInProgress = React.useRef(false);
+  const teamsCache = React.useRef<Record<string, TeamEntry>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [stableAddressOverride, setStableAddressOverride] = useState("");
@@ -250,6 +252,11 @@ export default function Home() {
 
 
   const loadTeamForAddress = useCallback(async (address: string) => {
+    if (!address) return null;
+    if (teamsCache.current[address]) {
+      return teamsCache.current[address];
+    }
+
     const response = await fetch(
       `/api/team-entry?address=${address}&season=${SEASON}`
     );
@@ -276,11 +283,14 @@ export default function Home() {
     }
     const assetsData = (await assetsRes.json()) as { assets: OwnedHorse[] };
 
-    return {
+    const teamEntry = {
       address,
       assetIds: data.entry.asset_ids,
       horses: assetsData.assets,
     } as TeamEntry;
+
+    teamsCache.current[address] = teamEntry;
+    return teamEntry;
   }, []);
 
   const assignBracketAddress = useCallback(
@@ -413,9 +423,11 @@ export default function Home() {
     let mounted = true;
 
     const fetchContractState = async () => {
+      if (syncInProgress.current) return;
+      syncInProgress.current = true;
+
       try {
-        console.log("[Contract] Fetching tournament info...");
-        // Use active address or dummy sender for read-only simulation
+        console.log("[Contract] Syncing tournament state...");
         const sender = activeAddress || READ_ONLY_SENDER;
         const suggestedParams = activeAddress ? undefined : TESTNET_PARAMS;
 
@@ -424,8 +436,8 @@ export default function Home() {
         const totalSlots = Number(info.bracketSize);
 
         if (mounted) {
-          if ([8, 16, 32].includes(totalSlots)) {
-            setBracketSize(totalSlots as 8 | 16 | 32);
+          if ([2, 4, 8, 16, 32].includes(totalSlots)) {
+            setBracketSize(totalSlots as 2 | 4 | 8 | 16 | 32);
           }
         }
 
@@ -445,9 +457,10 @@ export default function Home() {
             return next;
           });
 
-          // Fetch teams for these addresses
-          const teamPromises = slotAddresses.map((addr) => loadTeamForAddress(addr));
-          const teamResults = await Promise.all(teamPromises);
+          // Fetch teams only for new addresses or if not in cache
+          const teamResults = await Promise.all(
+            slotAddresses.map((addr) => loadTeamForAddress(addr))
+          );
 
           setTeams((prev) => {
             const next = { ...prev };
@@ -456,15 +469,23 @@ export default function Home() {
             });
             return next;
           });
-          console.log(`[Contract] Synced ${size} slots`);
         }
       } catch (e) {
         console.error("[Contract] Failed to sync state:", e);
+      } finally {
+        syncInProgress.current = false;
       }
     };
 
     fetchContractState();
-  }, [contract, refreshTrigger, loadTeamForAddress]);
+    const interval = setInterval(() => {
+      if (view === "bracket") fetchContractState();
+    }, 15000); // Sync every 15s in bracket view
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [contract, refreshTrigger, loadTeamForAddress, view, activeAddress]);
 
 
   const setBracketSlotInput = (slotIndex: number, address: string) => {
@@ -747,7 +768,11 @@ export default function Home() {
         ? "Round of 32"
         : bracketSize === 16
           ? "Round of 16"
-          : "Quarterfinals";
+          : bracketSize === 8
+            ? "Quarterfinals"
+            : bracketSize === 4
+              ? "Semifinals"
+              : "Final";
     let roundIndex = 0;
     while (matchCount >= 1) {
       rounds.push({
@@ -1236,58 +1261,102 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <div className="flex border-b border-white/5">
-                  {[
-                    { id: "assign", label: "1. Assign" },
-                    { id: "bracket", label: "2. Bracket" },
-                    { id: "history", label: "3. History" }
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setBracketTab(tab.id as "assign" | "bracket" | "history")}
-                      className={`px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${bracketTab === tab.id
-                        ? "text-[var(--accent)]"
-                        : "text-[var(--muted)] hover:text-white"
-                        }`}
-                    >
-                      {tab.label}
-                      {bracketTab === tab.id && (
-                        <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-[var(--accent)] shadow-[0_0_15px_var(--accent)]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    {isAdmin && (
-                      <button
-                        className="rounded-full border border-[var(--accent)]/60 px-4 py-2 text-sm text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
-                        onClick={autoPopulateBracket}
-                      >
-                        Auto-Populate
-                      </button>
-                    )}
-                    <select
-                      className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm text-white focus:outline-none focus:border-[var(--accent)]/50"
-                      value={bracketSize}
-                      onChange={(event) => {
-                        const next = Number(event.target.value) as 8 | 16 | 32;
-                        setBracketSize(next);
-                        setBracketSlots(Array(next).fill(""));
-                      }}
-                    >
-                      <option value={8}>8 Slots</option>
-                      <option value={16}>16 Slots</option>
-                      <option value={32}>32 Slots</option>
-                    </select>
+                {isAdmin && (
+                  <div className="flex flex-wrap gap-4 items-center bg-white/5 p-4 rounded-2xl border border-white/10 ring-1 ring-white/5">
+                    <div className="text-[10px] uppercase font-black tracking-widest text-[var(--muted)] border-r border-white/10 pr-4 mr-2">
+                      Admin Widget
+                    </div>
+                    <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-xl border border-white/5">
+                      {[2, 4, 8, 16, 32].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setBracketSize(size as any)}
+                          className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all ${bracketSize === size ? "bg-[var(--accent)] text-black shadow-[0_0_12px_var(--accent)]" : "text-[var(--muted)] hover:text-white"}`}
+                        >
+                          {size}P
+                        </button>
+                      ))}
+                    </div>
                     <button
-                      className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10"
-                      onClick={clearBracket}
+                      onClick={async () => {
+                        if (!contract) return;
+                        if (!confirm("Are you sure you want to CANCEL this tournament?")) return;
+                        try {
+                          await contract.send.closeTournament({ args: [] });
+                          alert("Tournament marked as Cancelled.");
+                          setRefreshTrigger(prev => prev + 1);
+                        } catch (e) {
+                          alert("Failed to cancel: " + (e as Error).message);
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
                     >
-                      Clear All
+                      Cancel Contract
+                    </button>
+                    <button
+                      onClick={() => alert("To create a new tournament, please deploy a new contract instance using AlgoKit and update the App ID.")}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                    >
+                      Create New
                     </button>
                   </div>
+                )}
+              </div>
+
+              <div className="flex border-b border-white/5">
+                {[
+                  { id: "assign", label: "1. Assign" },
+                  { id: "bracket", label: "2. Bracket" },
+                  { id: "history", label: "3. History" }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setBracketTab(tab.id as "assign" | "bracket" | "history")}
+                    className={`px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${bracketTab === tab.id
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--muted)] hover:text-white"
+                      }`}
+                  >
+                    {tab.label}
+                    {bracketTab === tab.id && (
+                      <div className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-[var(--accent)] shadow-[0_0_15px_var(--accent)]" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  {isAdmin && (
+                    <button
+                      className="rounded-full border border-[var(--accent)]/60 px-4 py-2 text-sm text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
+                      onClick={autoPopulateBracket}
+                    >
+                      Auto-Populate
+                    </button>
+                  )}
+                  <select
+                    className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm text-white focus:outline-none focus:border-[var(--accent)]/50"
+                    value={bracketSize}
+                    onChange={(event) => {
+                      const next = Number(event.target.value) as 2 | 4 | 8 | 16 | 32;
+                      setBracketSize(next);
+                      setBracketSlots(Array(next).fill(""));
+                    }}
+                  >
+                    <option value={2}>2 Slots</option>
+                    <option value={4}>4 Slots</option>
+                    <option value={8}>8 Slots</option>
+                    <option value={16}>16 Slots</option>
+                    <option value={32}>32 Slots</option>
+                  </select>
+                  <button
+                    className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10"
+                    onClick={clearBracket}
+                  >
+                    Clear All
+                  </button>
                 </div>
               </div>
 
@@ -1544,9 +1613,6 @@ export default function Home() {
           [Admin Mode: {isAdmin ? "Enabled" : "Disabled"}]
         </button>
       </footer>
-    </main >
-
-
-
+    </main>
   );
 }

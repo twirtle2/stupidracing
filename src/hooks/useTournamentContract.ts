@@ -11,21 +11,10 @@ const INDEXER_SERVER = process.env.NEXT_PUBLIC_INDEXER_URL || 'https://testnet-i
 export function useTournamentContract() {
     const { activeAccount, signTransactions } = useWallet();
 
-    const client = useMemo(() => {
-        console.log("[TournamentContract] init", {
-            APP_ID: APP_ID.toString(),
-            hasActiveAccount: !!activeAccount,
-            address: activeAccount?.address,
-        });
-
-        if (!APP_ID) {
-            console.warn("[TournamentContract] APP_ID is 0 — check NEXT_PUBLIC_TOURNAMENT_APP_ID env var");
-            return null;
-        }
-
+    // Memoize the base AlgorandClient once
+    const algorand = useMemo(() => {
         try {
-            // Initialize AlgorandClient
-            const algorand = AlgorandClient.fromConfig({
+            return AlgorandClient.fromConfig({
                 algodConfig: {
                     server: ALGOD_SERVER,
                     port: 443,
@@ -37,7 +26,16 @@ export function useTournamentContract() {
                     token: '',
                 },
             });
+        } catch (err) {
+            console.error("[TournamentContract] failed to create algorand client:", err);
+            return null;
+        }
+    }, []);
 
+    const client = useMemo(() => {
+        if (!APP_ID || !algorand) return null;
+
+        try {
             // If account is connected, register the signer and set default sender
             if (activeAccount) {
                 const signer: TransactionSigner = async (txns: Transaction[], indexesToSign?: number[]) => {
@@ -53,19 +51,16 @@ export function useTournamentContract() {
                 algorand.account.setSigner(activeAccount.address, signer);
             }
 
-            const tournamentClient = new StupidRacingTournamentClient({
+            return new StupidRacingTournamentClient({
                 appId: APP_ID,
                 algorand,
                 defaultSender: activeAccount?.address,
             });
-
-            console.log("[TournamentContract] client created successfully");
-            return tournamentClient;
         } catch (err) {
-            console.error("[TournamentContract] failed to create client:", err);
+            console.error("[TournamentContract] failed to create tournament client:", err);
             return null;
         }
-    }, [activeAccount?.address, signTransactions]);
+    }, [activeAccount?.address, signTransactions, algorand]);
 
     return client;
 }

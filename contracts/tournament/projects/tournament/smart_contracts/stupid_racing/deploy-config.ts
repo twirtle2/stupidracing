@@ -5,7 +5,19 @@ import { StupidRacingTournamentFactory } from '../artifacts/stupid_racing/Stupid
 export async function deploy() {
     console.log('=== Deploying StupidRacingTournament ===')
 
-    const algorand = AlgorandClient.fromEnvironment()
+    // Use explicit configuration instead of fromEnvironment for more control
+    const algorand = AlgorandClient.fromConfig({
+        algodConfig: {
+            server: process.env.ALGOD_SERVER || 'https://testnet-api.algonode.cloud',
+            port: Number(process.env.ALGOD_PORT || 443),
+            token: process.env.ALGOD_TOKEN || '',
+        },
+        indexerConfig: {
+            server: process.env.INDEXER_SERVER || 'https://testnet-idx.algonode.cloud',
+            port: Number(process.env.INDEXER_PORT || 443),
+            token: process.env.INDEXER_TOKEN || '',
+        },
+    })
     const deployer = await algorand.account.fromEnvironment('DEPLOYER')
 
     console.log(`Deploying using account: ${deployer.addr}`)
@@ -22,7 +34,7 @@ export async function deploy() {
             method: 'create',
             args: {
                 season: 1n,
-                bracketSize: 8n,
+                bracketSize: 2n,
                 beaconAppId: 600011887n, // TestNet Randomness Beacon
             },
         }
