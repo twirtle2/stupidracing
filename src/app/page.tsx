@@ -66,7 +66,14 @@ type BracketMatchResult = {
 };
 
 
-const READ_ONLY_SENDER = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
+const READ_ONLY_SENDER = "CMYTBDMMKVKJSN4YO7BSVMBJCVTC2GBG6BY22Z4KKIUDNZGKUQI54MNTHU";
+const TESTNET_PARAMS = {
+  fee: 1000,
+  firstRound: 1,
+  lastRound: 1000,
+  genesisID: "testnet-v1.0",
+  genesisHash: "SGO1GKSzyE7IEPItTxC94MBqPkstsF_P49wa9xCn35I=",
+};
 
 export default function Home() {
   const { wallets, activeAddress } = useWallet();
@@ -410,8 +417,9 @@ export default function Home() {
         console.log("[Contract] Fetching tournament info...");
         // Use active address or dummy sender for read-only simulation
         const sender = activeAddress || READ_ONLY_SENDER;
+        const suggestedParams = activeAddress ? undefined : TESTNET_PARAMS;
 
-        const info = await contract.getTournamentInfo({ sender, args: [] });
+        const info = await contract.getTournamentInfo({ sender, suggestedParams, args: [] } as any);
         const size = Number(info.registeredCount);
         const totalSlots = Number(info.bracketSize);
 
@@ -423,7 +431,7 @@ export default function Home() {
 
         const slotPromises = [];
         for (let i = 0; i < size; i++) {
-          slotPromises.push(contract.getSlot({ sender, args: { slotIndex: BigInt(i) } }));
+          slotPromises.push(contract.getSlot({ sender, suggestedParams, args: { slotIndex: BigInt(i) } } as any));
         }
 
         const slotAddresses = await Promise.all(slotPromises);
