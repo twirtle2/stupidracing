@@ -100,6 +100,7 @@ export default function Home() {
   const [bracketSize, setBracketSize] = useState<2 | 4 | 8 | 16 | 32>(8);
   const [bracketSlots, setBracketSlots] = useState<string[]>(Array(8).fill(""));
   const syncInProgress = React.useRef(false);
+  const lastSyncTime = React.useRef(0);
   const teamsCache = React.useRef<Record<string, TeamEntry>>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
@@ -424,10 +425,15 @@ export default function Home() {
 
     const fetchContractState = async () => {
       if (syncInProgress.current) return;
+
+      // Don't sync more than once every 5 seconds even if effect re-runs
+      const now = Date.now();
+      if (now - lastSyncTime.current < 5000) return;
+
       syncInProgress.current = true;
+      lastSyncTime.current = now;
 
       try {
-        console.log("[Contract] Syncing tournament state...");
         const sender = activeAddress || READ_ONLY_SENDER;
         const suggestedParams = activeAddress ? undefined : TESTNET_PARAMS;
 

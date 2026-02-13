@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useWallet } from '@txnlab/use-wallet-react';
 import { AlgorandClient } from '@algorandfoundation/algokit-utils';
 import { TransactionSigner, Transaction } from 'algosdk';
@@ -10,6 +10,12 @@ const INDEXER_SERVER = process.env.NEXT_PUBLIC_INDEXER_URL || 'https://testnet-i
 
 export function useTournamentContract() {
     const { activeAccount, signTransactions } = useWallet();
+    const signTransactionsRef = useRef(signTransactions);
+
+    // Keep ref up to date
+    useEffect(() => {
+        signTransactionsRef.current = signTransactions;
+    }, [signTransactions]);
 
     // Memoize the base AlgorandClient once
     const algorand = useMemo(() => {
@@ -40,9 +46,10 @@ export function useTournamentContract() {
             if (activeAccount) {
                 const signer: TransactionSigner = async (txns: Transaction[], indexesToSign?: number[]) => {
                     const encodedTxns = txns.map(t => t.toByte());
-                    const result = await signTransactions(encodedTxns, indexesToSign);
+                    // Use the current ref value
+                    const result = await signTransactionsRef.current(encodedTxns, indexesToSign);
 
-                    if (result.some(r => r === null)) {
+                    if (result.some((r: Uint8Array | null) => r === null)) {
                         throw new Error("Failed to sign all transactions");
                     }
                     return result as Uint8Array[];
@@ -60,7 +67,7 @@ export function useTournamentContract() {
             console.error("[TournamentContract] failed to create tournament client:", err);
             return null;
         }
-    }, [activeAccount?.address, signTransactions, algorand]);
+    }, [activeAccount?.address, algorand]);
 
     return client;
 }
