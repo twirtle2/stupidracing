@@ -69,12 +69,12 @@ export async function deploy() {
     console.log(`Tournament Info:`)
     console.log(`  App ID: ${result.appId}`)
     console.log(`  App Address: ${result.appAddress}`)
-    // @ts-ignore
+    // @ts-expect-error generated return type is broader than runtime shape
     console.log(`  Season: ${info.return?.season}`)
-    // @ts-ignore
+    // @ts-expect-error generated return type is broader than runtime shape
     console.log(`  Bracket Size: ${info.return?.bracketSize}`)
-    // @ts-ignore
+    // @ts-expect-error generated return type is broader than runtime shape
     console.log(`  Registered: ${info.return?.registeredCount}`)
-    // @ts-ignore
+    // @ts-expect-error generated return type is broader than runtime shape
     console.log(`  State: ${info.return?.state}`)
 }

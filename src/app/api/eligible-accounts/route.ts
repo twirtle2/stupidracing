@@ -13,8 +13,8 @@ async function fetchWithRetry(url: string, retries = 3) {
                 continue;
             }
             return res;
-        } catch (e) {
-            if (i === retries - 1) throw e;
+        } catch (error) {
+            if (i === retries - 1) throw error;
             await new Promise(r => setTimeout(r, 500));
         }
     }
@@ -45,20 +45,22 @@ export async function GET(req: Request) {
                     try {
                         const resp = await fetchWithRetry(`${baseUrl}/v2/assets/${asset.index}/balances?currency-greater-than=0`);
                         if (resp.ok) {
-                            const data = await resp.json();
-                            data.balances?.forEach((b: any) => {
+                            const data = (await resp.json()) as {
+                                balances?: Array<{ address: string }>;
+                            };
+                            data.balances?.forEach((b) => {
                                 // Ignore creator wallets or empty balances
                                 if (STUPIDHORSE_CREATORS.includes(b.address)) return;
                                 if (!holderMap.has(b.address)) holderMap.set(b.address, new Set());
                                 holderMap.get(b.address)!.add(asset.index);
                             });
                         }
-                    } catch (e) { /* ignore individual asset fetch errors */ }
+                    } catch { /* ignore individual asset fetch errors */ }
                 })
             );
 
             // If we already have enough candidates, we can stop early to save time
-            const candidates = Array.from(holderMap.entries()).filter(([_, assets]) => assets.size >= 5);
+            const candidates = Array.from(holderMap.entries()).filter(([, assets]) => assets.size >= 5);
             if (candidates.length >= limit * 2) break;
 
             // Small pause between chunks
@@ -66,7 +68,7 @@ export async function GET(req: Request) {
         }
 
         const eligible = Array.from(holderMap.entries())
-            .filter(([_, assets]) => assets.size >= 5)
+            .filter(([, assets]) => assets.size >= 5)
             .map(([address, assets]) => ({
                 address,
                 assetCount: assets.size,

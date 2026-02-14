@@ -1,4 +1,5 @@
 export type NfdLookupResult = Record<string, { name?: string } | undefined>;
+type NfdLookupArrayItem = { address?: string; name?: string };
 
 export async function fetchNfdForAddresses(addresses: string[]) {
   const unique = Array.from(new Set(addresses.filter(Boolean)));
@@ -20,7 +21,7 @@ export async function fetchNfdForAddresses(addresses: string[]) {
       if (!res.ok) {
         continue;
       }
-      const data = (await res.json()) as NfdLookupResult | Array<any>;
+      const data = (await res.json()) as NfdLookupResult | NfdLookupArrayItem[];
       if (Array.isArray(data)) {
         for (const item of data) {
           if (item?.address && item?.name) {
@@ -34,7 +35,7 @@ export async function fetchNfdForAddresses(addresses: string[]) {
           out[address] = value.name;
         }
       }
-    } catch (e) {
+    } catch {
       // Silently handle NFD lookup failures (expected for non-NFD addresses)
     }
   }

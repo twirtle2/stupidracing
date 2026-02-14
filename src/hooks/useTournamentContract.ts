@@ -1,34 +1,38 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useEffect, useMemo } from "react";
 import { useWallet } from '@txnlab/use-wallet-react';
 import { AlgorandClient } from '@algorandfoundation/algokit-utils';
 import { TransactionSigner, Transaction } from 'algosdk';
 import { StupidRacingTournamentClient } from '@/lib/contracts/StupidRacingTournamentClient';
 
-const APP_ID = BigInt(process.env.NEXT_PUBLIC_TOURNAMENT_APP_ID || "0");
 const ALGOD_SERVER = process.env.NEXT_PUBLIC_ALGOD_URL || 'https://testnet-api.algonode.cloud';
 const INDEXER_SERVER = process.env.NEXT_PUBLIC_INDEXER_URL || 'https://testnet-idx.algonode.cloud';
 
-export function useTournamentContract() {
-    const { activeAccount, signTransactions } = useWallet();
-    const signTransactionsRef = useRef(signTransactions);
+function parseNodeUrl(urlInput: string, defaultPort: number) {
+    const url = new URL(urlInput);
+    return {
+        server: `${url.protocol}//${url.hostname}`,
+        port: Number(url.port || defaultPort),
+    };
+}
 
-    // Keep ref up to date
-    useEffect(() => {
-        signTransactionsRef.current = signTransactions;
-    }, [signTransactions]);
+export function useTournamentContract(appId: bigint | null) {
+    const { activeAccount, signTransactions } = useWallet();
 
     // Memoize the base AlgorandClient once
     const algorand = useMemo(() => {
         try {
+            const algod = parseNodeUrl(ALGOD_SERVER, ALGOD_SERVER.startsWith("https") ? 443 : 80);
+            const indexer = parseNodeUrl(INDEXER_SERVER, INDEXER_SERVER.startsWith("https") ? 443 : 80);
+
             return AlgorandClient.fromConfig({
                 algodConfig: {
-                    server: ALGOD_SERVER,
-                    port: 443,
+                    server: algod.server,
+                    port: algod.port,
                     token: '',
                 },
                 indexerConfig: {
-                    server: INDEXER_SERVER,
-                    port: 443,
+                    server: indexer.server,
+                    port: indexer.port,
                     token: '',
                 },
             });
@@ -38,28 +42,34 @@ export function useTournamentContract() {
         }
     }, []);
 
+    const signer = useMemo<TransactionSigner | null>(() => {
+        if (!activeAccount) {
+            return null;
+        }
+
+        return async (txns: Transaction[], indexesToSign?: number[]) => {
+            const encodedTxns = txns.map((txn) => txn.toByte());
+            const result = await signTransactions(encodedTxns, indexesToSign);
+            if (result.some((r: Uint8Array | null) => r === null)) {
+                throw new Error("Failed to sign all transactions");
+            }
+            return result as Uint8Array[];
+        };
+    }, [activeAccount, signTransactions]);
+
+    useEffect(() => {
+        if (!algorand || !activeAccount || !signer) {
+            return;
+        }
+        algorand.account.setSigner(activeAccount.address, signer);
+    }, [activeAccount, algorand, signer]);
+
     const client = useMemo(() => {
-        if (!APP_ID || !algorand) return null;
+        if (!appId || appId <= 0n || !algorand) return null;
 
         try {
-            // If account is connected, register the signer and set default sender
-            if (activeAccount) {
-                const signer: TransactionSigner = async (txns: Transaction[], indexesToSign?: number[]) => {
-                    const encodedTxns = txns.map(t => t.toByte());
-                    // Use the current ref value
-                    const result = await signTransactionsRef.current(encodedTxns, indexesToSign);
-
-                    if (result.some((r: Uint8Array | null) => r === null)) {
-                        throw new Error("Failed to sign all transactions");
-                    }
-                    return result as Uint8Array[];
-                };
-
-                algorand.account.setSigner(activeAccount.address, signer);
-            }
-
             return new StupidRacingTournamentClient({
-                appId: APP_ID,
+                appId,
                 algorand,
                 defaultSender: activeAccount?.address,
             });
@@ -67,7 +77,7 @@ export function useTournamentContract() {
             console.error("[TournamentContract] failed to create tournament client:", err);
             return null;
         }
-    }, [activeAccount?.address, algorand]);
+    }, [activeAccount?.address, algorand, appId]);
 
     return client;
 }

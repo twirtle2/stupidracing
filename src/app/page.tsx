@@ -3,16 +3,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useWallet } from "@txnlab/use-wallet-react";
+import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
 import { useTournamentContract } from "@/hooks/useTournamentContract";
+import { StupidRacingTournamentFactory } from "@/lib/contracts/StupidRacingTournamentClient";
 
 import type { StupidHorseAsset } from "@/lib/stupidhorse";
 import { fetchNfdForAddresses, shortAddress } from "@/lib/nfd";
 
 
-const SEASON = 1;
-const FINISH_LINE = 12;
-const CLIFF = -5;
-const ROLL_OPTIONS = [-3, -2, -1, 1, 2, 3, 4];
+const BRACKET_SIZE_OPTIONS = [2, 4, 8, 16, 32] as const;
+const DEFAULT_BEACON_APP_ID = process.env.NEXT_PUBLIC_BEACON_APP_ID || "600011887";
 
 type HorseProfile = {
   asset_id: number;
@@ -65,19 +65,47 @@ type BracketMatchResult = {
   logs: RaceLogEntry[];
 };
 
+type SeasonDescriptor = {
+  season: number;
+  appId: string;
+  isLatest: boolean;
+};
+
 
 const READ_ONLY_SENDER = "CMYTBDMMKVKJSN4YO7BSVMBJCVTC2GBG6BY22Z4KKIUDNZGKUQI54MNTHU";
-const TESTNET_PARAMS = {
-  fee: 1000,
-  firstRound: 1,
-  lastRound: 1000,
-  genesisID: "testnet-v1.0",
-  genesisHash: "SGO1GKSzyE7IEPItTxC94MBqPkstsF_P49wa9xCn35I=",
+const TOURNAMENT_STATE_LABELS: Record<number, string> = {
+  0: "Created",
+  1: "Open",
+  2: "Locked",
+  3: "Racing",
+  4: "Completed",
+  5: "Cancelled",
 };
 
 export default function Home() {
   const { wallets, activeAddress } = useWallet();
-  const contract = useTournamentContract();
+  const [seasonOptions, setSeasonOptions] = useState<SeasonDescriptor[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
+  const latestSeason = useMemo(
+    () => seasonOptions.find((option) => option.isLatest)?.season ?? null,
+    [seasonOptions]
+  );
+  const activeSeason = selectedSeason ?? latestSeason ?? 1;
+  const selectedSeasonMeta = useMemo(
+    () => seasonOptions.find((option) => option.season === activeSeason) ?? null,
+    [activeSeason, seasonOptions]
+  );
+  const selectedAppId = useMemo(() => {
+    if (!selectedSeasonMeta) return null;
+    try {
+      return BigInt(selectedSeasonMeta.appId);
+    } catch {
+      return null;
+    }
+  }, [selectedSeasonMeta]);
+  const isLatestSeason = latestSeason === null || activeSeason === latestSeason;
+  const hasSeasonRegistry = seasonOptions.length > 0;
+  const contract = useTournamentContract(selectedAppId);
   const [ownedHorses, setOwnedHorses] = useState<OwnedHorse[]>([]);
   const [profiles, setProfiles] = useState<Record<number, HorseProfile>>({});
   const [drafts, setDrafts] = useState<
@@ -85,19 +113,13 @@ export default function Home() {
   >({});
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [creatingSeason, setCreatingSeason] = useState(false);
+  const [seasonState, setSeasonState] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [team, setTeam] = useState<number[]>([]);
   const [teams, setTeams] = useState<Record<string, TeamEntry>>({});
-  const [matchLeftSlot, setMatchLeftSlot] = useState<number | null>(null);
-  const [matchRightSlot, setMatchRightSlot] = useState<number | null>(null);
-  const [heatLog, setHeatLog] = useState<RaceLogEntry[]>([]);
-  const [matchScore, setMatchScore] = useState<{ left: number; right: number }>({
-    left: 0,
-    right: 0,
-  });
-  const [matchStatus, setMatchStatus] = useState<string>("ready");
   const [matchHistory, setMatchHistory] = useState<MatchResult[]>([]);
-  const [bracketSize, setBracketSize] = useState<2 | 4 | 8 | 16 | 32>(8);
+  const [bracketSize, setBracketSize] = useState<(typeof BRACKET_SIZE_OPTIONS)[number]>(8);
   const [bracketSlots, setBracketSlots] = useState<string[]>(Array(8).fill(""));
   const syncInProgress = React.useRef(false);
   const lastSyncTime = React.useRef(0);
@@ -113,18 +135,71 @@ export default function Home() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isPopulating, setIsPopulating] = useState(false);
   const [bracketTab, setBracketTab] = useState<"assign" | "bracket" | "history">("assign");
+  const loadSeasons = useCallback(async () => {
+    const response = await fetch("/api/seasons");
+    if (!response.ok) {
+      throw new Error("Failed to load season registry");
+    }
 
+    const data = (await response.json()) as { seasons?: SeasonDescriptor[] };
+    const seasons = data.seasons ?? [];
+    setSeasonOptions(seasons);
+    setSelectedSeason((previous) => {
+      if (previous && seasons.some((entry) => entry.season === previous)) {
+        return previous;
+      }
+      return seasons.find((entry) => entry.isLatest)?.season ?? seasons.at(-1)?.season ?? 1;
+    });
+    return seasons;
+  }, []);
 
+  useEffect(() => {
+    let mounted = true;
 
+    const init = async () => {
+      try {
+        await loadSeasons();
+      } catch (err) {
+        if (mounted) {
+          setError((err as Error).message);
+        }
+      }
+    };
 
+    init();
+    return () => {
+      mounted = false;
+    };
+  }, [loadSeasons]);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
+  useEffect(() => {
+    teamsCache.current = {};
+    setTeams({});
+    setBracketResults({});
+    setMatchHistory([]);
+    setTeam([]);
+    setBracketSize(8);
+    setBracketSlots(Array(8).fill(""));
+    setSeasonState(null);
+  }, [activeSeason]);
+
 
 
   const stableAddress = stableAddressOverride.trim() || activeAddress || "";
+  const activeAppIdParam = selectedSeasonMeta?.appId || "";
+  const seasonQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("season", String(activeSeason));
+    if (activeAppIdParam) {
+      params.set("appId", activeAppIdParam);
+    }
+    return params.toString();
+  }, [activeSeason, activeAppIdParam]);
+
   const displayAddress = (address?: string | null) => {
     if (!address) {
       return "";
@@ -195,6 +270,10 @@ export default function Home() {
     if (!isAdmin) {
       return;
     }
+    if (!isLatestSeason) {
+      setError("Auto-populate is disabled for past seasons.");
+      return;
+    }
     setIsPopulating(true);
     try {
 
@@ -258,9 +337,13 @@ export default function Home() {
       return teamsCache.current[address];
     }
 
-    const response = await fetch(
-      `/api/team-entry?address=${address}&season=${SEASON}`
-    );
+    const params = new URLSearchParams();
+    params.set("address", address);
+    params.set("season", String(activeSeason));
+    if (activeAppIdParam) {
+      params.set("appId", activeAppIdParam);
+    }
+    const response = await fetch(`/api/team-entry?${params.toString()}`);
     if (!response.ok) {
       return null;
     }
@@ -292,7 +375,7 @@ export default function Home() {
 
     teamsCache.current[address] = teamEntry;
     return teamEntry;
-  }, []);
+  }, [activeAppIdParam, activeSeason]);
 
   const assignBracketAddress = useCallback(
     async (slotIndex: number, address: string) => {
@@ -324,6 +407,9 @@ export default function Home() {
   );
 
   useEffect(() => {
+    if (!hasSeasonRegistry) {
+      return;
+    }
     if (!activeAddress) {
       return;
     }
@@ -331,9 +417,12 @@ export default function Home() {
       return;
     }
     assignBracketAddress(0, activeAddress);
-  }, [activeAddress, bracketSlots, assignBracketAddress]);
+  }, [activeAddress, bracketSlots, assignBracketAddress, hasSeasonRegistry]);
 
   useEffect(() => {
+    if (!hasSeasonRegistry) {
+      return;
+    }
     if (!stableAddress) {
       setOwnedHorses([]);
       setProfiles({});
@@ -361,7 +450,7 @@ export default function Home() {
         setOwnedHorses(ownedData.assets ?? []);
 
         const profilesRes = await fetch(
-          `/api/horse-profile?address=${stableAddress}&season=${SEASON}`
+          `/api/horse-profile?address=${stableAddress}&${seasonQuery}`
         );
 
         if (!profilesRes.ok) {
@@ -379,7 +468,7 @@ export default function Home() {
         setProfiles(byId);
 
         const teamRes = await fetch(
-          `/api/team-entry?address=${stableAddress}&season=${SEASON}`
+          `/api/team-entry?address=${stableAddress}&${seasonQuery}`
         );
         if (teamRes.ok) {
           const teamData = (await teamRes.json()) as {
@@ -397,8 +486,8 @@ export default function Home() {
         }
 
         const historyUrl = view === "bracket"
-          ? `/api/race-results/get?season=${SEASON}`
-          : `/api/race-results/get?address=${stableAddress}&season=${SEASON}`;
+          ? `/api/race-results/get?${seasonQuery}`
+          : `/api/race-results/get?address=${stableAddress}&${seasonQuery}`;
 
         const historyRes = await fetch(historyUrl);
         if (historyRes.ok) {
@@ -415,7 +504,7 @@ export default function Home() {
     };
 
     fetchData();
-  }, [stableAddress, activeAddress, loadTeamForAddress, refreshTrigger, view]);
+  }, [stableAddress, activeAddress, loadTeamForAddress, refreshTrigger, view, activeSeason, hasSeasonRegistry, seasonQuery]);
 
 
   // Poll contract for global tournament state
@@ -435,27 +524,27 @@ export default function Home() {
 
       try {
         const sender = activeAddress || READ_ONLY_SENDER;
-        const suggestedParams = activeAddress ? undefined : TESTNET_PARAMS;
-
-        const info = await contract.getTournamentInfo({ sender, suggestedParams, args: [] } as any);
+        const info = await contract.getTournamentInfo({ sender, args: [] });
         const size = Number(info.registeredCount);
         const totalSlots = Number(info.bracketSize);
+        const stateValue = Number(info.state);
 
         if (mounted) {
-          if ([2, 4, 8, 16, 32].includes(totalSlots)) {
-            setBracketSize(totalSlots as 2 | 4 | 8 | 16 | 32);
+          if (BRACKET_SIZE_OPTIONS.includes(totalSlots as (typeof BRACKET_SIZE_OPTIONS)[number])) {
+            setBracketSize(totalSlots as (typeof BRACKET_SIZE_OPTIONS)[number]);
           }
+          setSeasonState(Number.isFinite(stateValue) ? stateValue : null);
         }
 
         const slotPromises = [];
         for (let i = 0; i < size; i++) {
-          slotPromises.push(contract.getSlot({ sender, suggestedParams, args: { slotIndex: BigInt(i) } } as any));
+          slotPromises.push(contract.getSlot({ sender, args: { slotIndex: BigInt(i) } }));
         }
 
         const slotAddresses = await Promise.all(slotPromises);
 
         if (mounted) {
-          setBracketSlots((prev) => {
+          setBracketSlots(() => {
             const next = Array(totalSlots).fill("");
             slotAddresses.forEach((addr, i) => {
               next[i] = addr;
@@ -519,7 +608,7 @@ export default function Home() {
         assetId,
         name,
         description,
-        season: SEASON,
+        season: activeSeason,
       }),
     });
 
@@ -532,31 +621,110 @@ export default function Home() {
     setProfiles((prev) => ({ ...prev, [assetId]: data.profile }));
   };
 
-  const saveTeam = async () => {
-    if (!activeAddress) {
+  const createNextSeasonOnChain = async () => {
+    if (!activeAddress || !contract) {
+      setError("Connect admin wallet to create a new season.");
       return;
     }
-    if (team.length !== 5) {
-      setError("Pick exactly 5 horses for your tournament team.");
-      return;
-    }
-
-    const response = await fetch("/api/team-entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        address: activeAddress,
-        assetIds: team,
-        season: SEASON,
-      }),
-    });
-
-    if (!response.ok) {
-      setError("Failed to save team entry");
+    if (!isLatestSeason) {
+      setError("Switch to the latest season before creating the next season.");
       return;
     }
 
+    const nextSeason = (latestSeason ?? activeSeason) + 1;
+    const bracketInput = window.prompt(
+      `Bracket size for Season ${nextSeason} (${BRACKET_SIZE_OPTIONS.join(", ")})`,
+      String(bracketSize)
+    );
+    if (!bracketInput) {
+      return;
+    }
+
+    const parsedBracket = Number(bracketInput);
+    if (!BRACKET_SIZE_OPTIONS.includes(parsedBracket as (typeof BRACKET_SIZE_OPTIONS)[number])) {
+      setError("Invalid bracket size. Use one of: 2, 4, 8, 16, 32.");
+      return;
+    }
+    const nextBracketSize = parsedBracket as (typeof BRACKET_SIZE_OPTIONS)[number];
+
+    const beaconInput = window.prompt(
+      `Randomness Beacon App ID for Season ${nextSeason}`,
+      DEFAULT_BEACON_APP_ID
+    );
+    if (!beaconInput) {
+      return;
+    }
+
+    let beaconAppId: bigint;
+    try {
+      beaconAppId = BigInt(beaconInput);
+      if (beaconAppId <= 0n) {
+        throw new Error("Beacon App ID must be positive");
+      }
+    } catch {
+      setError("Invalid beacon app ID.");
+      return;
+    }
+
+    setCreatingSeason(true);
     setError(null);
+    try {
+      const factory = new StupidRacingTournamentFactory({
+        algorand: contract.algorand,
+        defaultSender: activeAddress,
+      });
+
+      const created = await factory.send.create.create({
+        sender: activeAddress,
+        args: {
+          season: BigInt(nextSeason),
+          bracketSize: BigInt(nextBracketSize),
+          beaconAppId,
+        },
+      });
+
+      try {
+        await contract.algorand.send.payment({
+          sender: activeAddress,
+          receiver: created.appClient.appAddress,
+          amount: AlgoAmount.Algos(2),
+        });
+      } catch (fundError) {
+        console.warn("Season app funding skipped/failed:", fundError);
+      }
+
+      try {
+        await created.appClient.send.openRegistration({
+          sender: activeAddress,
+          args: {},
+        });
+      } catch (openError) {
+        console.warn("Open registration failed:", openError);
+      }
+
+      const newAppId = created.appClient.appId.toString();
+      setSeasonOptions((previous) => {
+        const withoutNext = previous.filter((entry) => entry.season !== nextSeason);
+        const next = [
+          ...withoutNext.map((entry) => ({ ...entry, isLatest: false })),
+          { season: nextSeason, appId: newAppId, isLatest: true },
+        ].sort((a, b) => a.season - b.season);
+        return next;
+      });
+      setSelectedSeason(nextSeason);
+      setBracketSize(nextBracketSize);
+      setBracketSlots(Array(nextBracketSize).fill(""));
+      setRefreshTrigger((prev) => prev + 1);
+
+      window.setTimeout(() => {
+        void loadSeasons();
+      }, 4000);
+      alert(`Season ${nextSeason} created (App ID ${newAppId}) and set active.`);
+    } catch (err) {
+      setError(`Failed to create new season: ${(err as Error).message}`);
+    } finally {
+      setCreatingSeason(false);
+    }
   };
 
   const registerTeamOnChain = async () => {
@@ -570,6 +738,10 @@ export default function Home() {
       setError("Contract client not ready — check browser console for [TournamentContract] errors and try refreshing.");
       return;
     }
+    if (!isLatestSeason) {
+      setError("Team registration is disabled for past seasons.");
+      return;
+    }
     if (team.length !== 5) {
       setError("Select exactly 5 horses before registering.");
       return;
@@ -578,9 +750,6 @@ export default function Home() {
     setRegistering(true);
     setError(null);
     try {
-      // Save team to local DB first
-      await saveTeam();
-
       const args = {
         assetId0: BigInt(team[0]),
         assetId1: BigInt(team[1]),
@@ -603,158 +772,6 @@ export default function Home() {
       setError("Registration failed: " + (err.message || String(e)));
     } finally {
       setRegistering(false);
-    }
-  };
-
-  const resetMatch = () => {
-    setHeatLog([]);
-    setMatchScore({ left: 0, right: 0 });
-    setMatchStatus("ready");
-  };
-
-  const runHeat = () => {
-    let leftPos = 0;
-    let rightPos = 0;
-    let status = "running";
-    let safety = 0;
-
-    while (status === "running" && safety < 100) {
-      const leftRoll =
-        ROLL_OPTIONS[Math.floor(Math.random() * ROLL_OPTIONS.length)];
-      const rightRoll =
-        ROLL_OPTIONS[Math.floor(Math.random() * ROLL_OPTIONS.length)];
-
-      leftPos += leftRoll;
-      rightPos += rightRoll;
-
-      const leftCliff = leftPos <= CLIFF;
-      const rightCliff = rightPos <= CLIFF;
-      const leftFinish = leftPos >= FINISH_LINE;
-      const rightFinish = rightPos >= FINISH_LINE;
-
-      if (leftCliff && rightCliff) {
-        status = "draw";
-      } else if (leftFinish && rightFinish) {
-        status = "draw";
-      } else if (leftFinish || rightCliff) {
-        status = "left wins";
-      } else if (rightFinish || leftCliff) {
-        status = "right wins";
-      }
-
-      safety += 1;
-    }
-
-    if (status === "running") {
-      status = "draw";
-    }
-
-    return {
-      left: leftPos,
-      right: rightPos,
-      status,
-    };
-  };
-
-  const runMatch = async () => {
-    if (matchLeftSlot === null || matchRightSlot === null) {
-      return;
-    }
-    if (matchLeftSlot === matchRightSlot) {
-      setError("Choose two different bracket slots.");
-      return;
-    }
-    const leftAddress = bracketSlots[matchLeftSlot];
-    const rightAddress = bracketSlots[matchRightSlot];
-    const leftTeam = leftAddress ? teams[leftAddress] : null;
-    const rightTeam = rightAddress ? teams[rightAddress] : null;
-
-    if (!leftTeam || !rightTeam) {
-      setError("Both slots must have teams loaded.");
-      return;
-    }
-
-    if (leftTeam.assetIds.length !== 5 || rightTeam.assetIds.length !== 5) {
-      setError("Each team must have exactly 5 horses.");
-      return;
-    }
-
-    const logs: RaceLogEntry[] = [];
-    let leftWins = 0;
-    let rightWins = 0;
-
-    for (let i = 0; i < 5; i += 1) {
-      const leftHorse = leftTeam.horses[i];
-      const rightHorse = rightTeam.horses[i];
-      if (!leftHorse || !rightHorse) {
-        logs.push({
-          left: 0,
-          right: 0,
-          leftRoll: 0,
-          rightRoll: 0,
-          status: `Heat ${i + 1}: missing horse`,
-        });
-        continue;
-      }
-      const heat = runHeat();
-      const heatStatus = `${leftHorse.name} vs ${rightHorse.name}: ${heat.status}`;
-      logs.push({
-        left: heat.left,
-        right: heat.right,
-        leftRoll: 0,
-        rightRoll: 0,
-        status: heatStatus,
-      });
-      if (heat.status === "left wins") {
-        leftWins += 1;
-      } else if (heat.status === "right wins") {
-        rightWins += 1;
-      }
-    }
-
-    const winnerAddress =
-      leftWins === rightWins
-        ? null
-        : leftWins > rightWins
-          ? leftAddress
-          : rightAddress;
-
-    setHeatLog(logs);
-    setMatchScore({ left: leftWins, right: rightWins });
-    if (leftWins === rightWins) {
-      setMatchStatus("draw - rerun match");
-    } else if (leftWins > rightWins) {
-      setMatchStatus("left team advances");
-    } else {
-      setMatchStatus("right team advances");
-    }
-
-    try {
-      await fetch("/api/race-results", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          season: SEASON,
-          walletAddress: leftAddress,
-          opponentAddress: rightAddress,
-          teamAssetIds: leftTeam.assetIds,
-          opponentAssetIds: rightTeam.assetIds,
-          winnerAddress,
-          matchId: `slot-${matchLeftSlot}-vs-${matchRightSlot}-${Date.now()}`,
-          log: logs,
-        }),
-      });
-      const historyRes = await fetch(
-        `/api/race-results/get?address=${stableAddress}&season=${SEASON}`
-      );
-      if (historyRes.ok) {
-        const historyData = (await historyRes.json()) as {
-          results: MatchResult[];
-        };
-        setMatchHistory(historyData.results ?? []);
-      }
-    } catch (err) {
-      console.error("Failed to save match result", err);
     }
   };
 
@@ -831,77 +848,48 @@ export default function Home() {
         return;
       }
 
-      // Artificial delay for visual feedback
-      await new Promise(r => setTimeout(r, 1500));
-
-      const logs: RaceLogEntry[] = [];
-      let leftWins = 0;
-      let rightWins = 0;
-
-      // Run exactly 5 heats to determine Best of 5 winner
-      // If we don't have enough horses, we use index modulo
-      for (let i = 0; i < 5; i++) {
-        const hA = teamA.horses[i % teamA.horses.length];
-        const hB = teamB.horses[i % teamB.horses.length];
-        const heat = runHeat();
-        logs.push({
-          left: heat.left,
-          right: heat.right,
-          leftRoll: 0,
-          rightRoll: 0,
-          status: `Heat ${i + 1}: ${hA?.name || "Left"} vs ${hB?.name || "Right"}: ${heat.status}`
-        });
-        if (heat.status === "left wins") leftWins++;
-        else if (heat.status === "right wins") rightWins++;
+      if (!contract || !activeAddress) {
+        setError("Connect an admin wallet to run on-chain matches.");
+        return;
+      }
+      if (!isLatestSeason) {
+        setError("On-chain match execution is disabled for past seasons.");
+        return;
       }
 
-      // Tie breaker if draws caused a deadlock
-      let safety = 0;
-      while (leftWins === rightWins && safety < 10) {
-        const heat = runHeat();
-        if (heat.status === "left wins") leftWins++;
-        else if (heat.status === "right wins") rightWins++;
-        safety++;
+      await contract.send.runMatch({
+        args: {
+          roundIndex: BigInt(roundIndex),
+          matchIndex: BigInt(matchIndex),
+        },
+      });
+
+      const chainResult = await contract.getMatchResult({
+        sender: activeAddress,
+        args: { matchId: BigInt(roundIndex * 100 + matchIndex) },
+      });
+
+      if (!chainResult) {
+        setError("Match completed on-chain but result could not be read.");
+        return;
       }
 
-      // Fallback tie breaker
-      if (leftWins === rightWins) {
-        if (Math.random() > 0.5) leftWins++;
-        else rightWins++;
-      }
-
-      const winnerAddress = leftWins > rightWins ? addressA : addressB;
+      const leftWins = Number(chainResult.leftScore);
+      const rightWins = Number(chainResult.rightScore);
+      const winnerAddress = chainResult.winner;
 
       setBracketResults(prev => ({
         ...prev,
         [matchId]: {
           winnerAddress,
           score: { left: leftWins, right: rightWins },
-          logs
+          logs: [],
         }
       }));
-
-      // Persist results if a winner was decided
-      if (winnerAddress) {
-        await fetch("/api/race-results", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            season: SEASON,
-            walletAddress: addressA,
-            teamAssetIds: teamA.assetIds,
-            opponentAddress: addressB,
-            opponentAssetIds: teamB.assetIds,
-            winnerAddress: winnerAddress,
-            matchId: matchId,
-            log: logs // API saves logs into the heats field
-          }),
-        });
-        setRefreshTrigger(prev => prev + 1);
-      }
+      setRefreshTrigger(prev => prev + 1);
 
     } catch (err) {
-      setError(`Simulation error: ${(err as Error).message}`);
+      setError(`On-chain match failed: ${(err as Error).message}`);
     } finally {
       setSimulatingMatch(null);
     }
@@ -1235,8 +1223,8 @@ export default function Home() {
                     <button
                       className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={registerTeamOnChain}
-                      disabled={registering || team.length !== 5}
-                      title={!contract ? "Contract not connected" : !activeAddress ? "Connect wallet first" : team.length !== 5 ? "Select 5 horses" : "Register team on-chain"}
+                      disabled={registering || team.length !== 5 || !isLatestSeason}
+                      title={!contract ? "Contract not connected" : !activeAddress ? "Connect wallet first" : !isLatestSeason ? "Registration is only available for the latest season" : team.length !== 5 ? "Select 5 horses" : "Register team on-chain"}
                     >
                       {registering ? "Registering…" : "Register"}
                     </button>
@@ -1255,11 +1243,43 @@ export default function Home() {
                     Tournament Hub
                   </h2>
                   <div className="mt-1 flex items-center gap-3 text-xs font-bold tracking-widest text-[var(--muted)]">
-                    <span>Season {SEASON}</span>
+                    <span>Season {activeSeason}</span>
                     <span>•</span>
                     <span>{bracketSize} Teams</span>
                     <span>•</span>
                     <span>One Champion</span>
+                    {seasonState !== null && (
+                      <>
+                        <span>•</span>
+                        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] uppercase tracking-wider text-white">
+                          {TOURNAMENT_STATE_LABELS[seasonState] ?? `State ${seasonState}`}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)]">
+                      Season
+                    </label>
+                    <select
+                      value={activeSeason}
+                      onChange={(event) => setSelectedSeason(Number(event.target.value))}
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-1 text-xs font-bold text-white outline-none focus:border-[var(--accent)]"
+                    >
+                      {seasonOptions
+                        .slice()
+                        .sort((a, b) => b.season - a.season)
+                        .map((option) => (
+                          <option key={option.season} value={option.season}>
+                            Season {option.season}{option.isLatest ? " (Latest)" : ""}
+                          </option>
+                        ))}
+                    </select>
+                    {!isLatestSeason && (
+                      <span className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                        Read-only season
+                      </span>
+                    )}
                   </div>
                   {!contract && (
                     <div className="mt-2 text-xs text-red-400 bg-red-900/20 px-2 py-1 rounded inline-block">
@@ -1274,10 +1294,10 @@ export default function Home() {
                       Admin Widget
                     </div>
                     <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-xl border border-white/5">
-                      {[2, 4, 8, 16, 32].map((size) => (
+                      {BRACKET_SIZE_OPTIONS.map((size) => (
                         <button
                           key={size}
-                          onClick={() => setBracketSize(size as any)}
+                          onClick={() => setBracketSize(size)}
                           className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all ${bracketSize === size ? "bg-[var(--accent)] text-black shadow-[0_0_12px_var(--accent)]" : "text-[var(--muted)] hover:text-white"}`}
                         >
                           {size}P
@@ -1287,6 +1307,10 @@ export default function Home() {
                     <button
                       onClick={async () => {
                         if (!contract) return;
+                        if (!isLatestSeason) {
+                          alert("Contract administration is disabled for past seasons.");
+                          return;
+                        }
                         if (!confirm("Are you sure you want to CANCEL this tournament?")) return;
                         try {
                           await contract.send.closeTournament({ args: [] });
@@ -1301,10 +1325,11 @@ export default function Home() {
                       Cancel Contract
                     </button>
                     <button
-                      onClick={() => alert("To create a new tournament, please deploy a new contract instance using AlgoKit and update the App ID.")}
+                      onClick={createNextSeasonOnChain}
+                      disabled={creatingSeason || !isLatestSeason}
                       className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
                     >
-                      Create New
+                      {creatingSeason ? "Creating..." : "Create New"}
                     </button>
                   </div>
                 )}
@@ -1338,6 +1363,7 @@ export default function Home() {
                     <button
                       className="rounded-full border border-[var(--accent)]/60 px-4 py-2 text-sm text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
                       onClick={autoPopulateBracket}
+                      disabled={!isLatestSeason || isPopulating}
                     >
                       Auto-Populate
                     </button>
@@ -1345,6 +1371,7 @@ export default function Home() {
                   <select
                     className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm text-white focus:outline-none focus:border-[var(--accent)]/50"
                     value={bracketSize}
+                    disabled={!isLatestSeason}
                     onChange={(event) => {
                       const next = Number(event.target.value) as 2 | 4 | 8 | 16 | 32;
                       setBracketSize(next);
@@ -1488,7 +1515,7 @@ export default function Home() {
                                     </div>
                                     <div className="flex items-center gap-4 px-3 py-1">
                                       <div className="h-[1px] flex-grow bg-white/10" />
-                                      {isAdmin && addressA && addressB && !result && (
+                                      {isAdmin && isLatestSeason && addressA && addressB && !result && (
                                         <button
                                           onClick={() => runBracketMatch(roundIndex, matchIndex)}
                                           disabled={!!simulatingMatch}
@@ -1530,7 +1557,7 @@ export default function Home() {
                       <button
                         className="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95"
                         onClick={async () => {
-                          const historyUrl = `/api/race-results/get?season=${SEASON}`;
+                          const historyUrl = `/api/race-results/get?${seasonQuery}`;
                           const historyRes = await fetch(historyUrl);
                           if (historyRes.ok) {
                             const historyData = (await historyRes.json()) as {
