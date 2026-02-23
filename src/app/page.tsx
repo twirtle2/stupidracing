@@ -1510,22 +1510,56 @@ export default function Home() {
                             {slot.teamEntry ? (
                               <div className="space-y-3">
                                 <div className="text-[9px] uppercase font-bold tracking-widest text-[var(--muted)]">Selected Horses</div>
-                                <div className="grid grid-cols-5 gap-2">
-                                  {slot.teamEntry.horses.map((horse, i) => (
-                                    <div
-                                      key={i}
-                                      className="aspect-square rounded-lg border border-white/10 bg-black/40 overflow-hidden ring-1 ring-white/5 shadow-inner group/horse relative"
+                                <div className="flex flex-wrap gap-2">
+                                  {slot.teamEntry.assetIds.map((assetId) => (
+                                    <span
+                                      key={`slot-${slot.slotIndex}-asset-chip-${assetId}`}
+                                      className="rounded-full border border-white/15 bg-black/40 px-2 py-1 text-[9px] font-mono text-white/90"
                                     >
-                                      <Image
-                                        src={horse.imageUrl}
-                                        alt={horse.name}
-                                        fill
-                                        sizes="40px"
-                                        className="object-cover transition-transform group-hover/horse:scale-110"
-                                      />
-                                      <div className="absolute inset-0 bg-black/0 group-hover/horse:bg-black/20 transition-colors" />
-                                    </div>
+                                      #{assetId}
+                                    </span>
                                   ))}
+                                </div>
+                                <div className="grid grid-cols-5 gap-2">
+                                  {slot.teamEntry.assetIds.map((assetId, i) => {
+                                    const horse = slot.teamEntry.horses.find(
+                                      (candidate) => candidate.assetId === assetId
+                                    );
+
+                                    if (!horse) {
+                                      return (
+                                        <div
+                                          key={`slot-${slot.slotIndex}-asset-fallback-${assetId}-${i}`}
+                                          className="aspect-square rounded-lg border border-white/10 bg-black/40 ring-1 ring-white/5 shadow-inner flex flex-col items-center justify-center px-1"
+                                          title={`Asset #${assetId}`}
+                                        >
+                                          <span className="text-[7px] uppercase tracking-widest text-[var(--muted)]">
+                                            Asset
+                                          </span>
+                                          <span className="mt-1 text-[9px] font-mono text-white/80">
+                                            #{assetId}
+                                          </span>
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div
+                                        key={`slot-${slot.slotIndex}-asset-${assetId}-${i}`}
+                                        className="aspect-square rounded-lg border border-white/10 bg-black/40 overflow-hidden ring-1 ring-white/5 shadow-inner group/horse relative"
+                                        title={`${horse.name} (#${assetId})`}
+                                      >
+                                        <Image
+                                          src={horse.imageUrl}
+                                          alt={horse.name}
+                                          fill
+                                          sizes="40px"
+                                          className="object-cover transition-transform group-hover/horse:scale-110"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover/horse:bg-black/20 transition-colors" />
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             ) : (
