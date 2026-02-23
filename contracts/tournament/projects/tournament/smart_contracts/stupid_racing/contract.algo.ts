@@ -110,13 +110,44 @@ export class StupidRacingTournament extends arc4.Contract {
         assetId4: uint64
     ): void {
         assert(this.state.value === STATE_REGISTRATION_OPEN, 'Registration is not open')
-        assert(!this.teams(Txn.sender).exists, 'Team already registered')
         this.assertUniqueAssets(assetId0, assetId1, assetId2, assetId3, assetId4)
         this.assertOwnedAllowedAsset(assetId0)
         this.assertOwnedAllowedAsset(assetId1)
         this.assertOwnedAllowedAsset(assetId2)
         this.assertOwnedAllowedAsset(assetId3)
         this.assertOwnedAllowedAsset(assetId4)
+        this.registerTeamForWallet(Txn.sender, assetId0, assetId1, assetId2, assetId3, assetId4)
+    }
+
+    @abimethod()
+    public adminRegisterMockTeam(
+        wallet: AccountType,
+        assetId0: uint64,
+        assetId1: uint64,
+        assetId2: uint64,
+        assetId3: uint64,
+        assetId4: uint64
+    ): void {
+        assert(Txn.sender === this.admin.value, 'Only admin can seed mock teams')
+        assert(this.state.value === STATE_REGISTRATION_OPEN, 'Registration is not open')
+        this.assertUniqueAssets(assetId0, assetId1, assetId2, assetId3, assetId4)
+        this.registerTeamForWallet(wallet, assetId0, assetId1, assetId2, assetId3, assetId4)
+    }
+
+    private lockTournament(): void {
+        this.state.value = STATE_LOCKED
+        this.vrfCommitRound.value = Global.round + Uint64(16)
+    }
+
+    private registerTeamForWallet(
+        wallet: AccountType,
+        assetId0: uint64,
+        assetId1: uint64,
+        assetId2: uint64,
+        assetId3: uint64,
+        assetId4: uint64
+    ): void {
+        assert(!this.teams(wallet).exists, 'Team already registered')
 
         const currentCount: uint64 = this.registeredCount.value
         assert(currentCount < this.bracketSize.value, 'Bracket is full')
@@ -131,18 +162,13 @@ export class StupidRacingTournament extends arc4.Contract {
             registeredAt: Global.latestTimestamp,
         }
 
-        this.teams(Txn.sender).value = clone(team)
-        this.bracketSlots(currentCount).value = Txn.sender
+        this.teams(wallet).value = clone(team)
+        this.bracketSlots(currentCount).value = wallet
         this.registeredCount.value = currentCount + Uint64(1)
 
         if (this.registeredCount.value === this.bracketSize.value) {
             this.lockTournament()
         }
-    }
-
-    private lockTournament(): void {
-        this.state.value = STATE_LOCKED
-        this.vrfCommitRound.value = Global.round + Uint64(16)
     }
 
     @abimethod()

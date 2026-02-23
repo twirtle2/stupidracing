@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
+import { encodeAddress } from "algosdk";
 import { useTournamentContract } from "@/hooks/useTournamentContract";
 import { StupidRacingTournamentFactory } from "@/lib/contracts/StupidRacingTournamentClient";
 import { env } from "@/lib/config";
@@ -85,6 +86,8 @@ const TOURNAMENT_STATE_LABELS: Record<number, string> = {
   4: "Completed",
   5: "Cancelled",
 };
+const TOURNAMENT_STATE_CREATED = 0;
+const TOURNAMENT_STATE_OPEN = 1;
 
 export default function Home() {
   const { wallets, activeAddress } = useWallet();
@@ -296,8 +299,78 @@ export default function Home() {
     setBracketSlots(Array(bracketSize).fill(""));
   };
 
+  const makeDummyAddress = (slotIndex: number) => {
+    const key = new Uint8Array(32);
+    for (let i = 0; i < 32; i += 1) {
+      key[i] = (slotIndex * 73 + i * 29 + 17) % 256;
+    }
+    return encodeAddress(key);
+  };
+
+  const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+  const runBracketOnChain = async (size: number) => {
+    if (!contract || !activeAddress) {
+      throw new Error("Connect admin wallet to run bracket.");
+    }
+
+    const totalRounds = Math.log2(size);
+    for (let roundIndex = 0; roundIndex < totalRounds; roundIndex += 1) {
+      const matches = size / 2 ** (roundIndex + 1);
+      for (let matchIndex = 0; matchIndex < matches; matchIndex += 1) {
+        let attempts = 0;
+        while (attempts < 30) {
+          try {
+            await contract.send.runMatch({
+              sender: activeAddress,
+              args: {
+                roundIndex: BigInt(roundIndex),
+                matchIndex: BigInt(matchIndex),
+              },
+              extraFee: AlgoAmount.MicroAlgos(1000),
+            });
+
+            const chainResult = await contract.getMatchResult({
+              sender: activeAddress,
+              args: { matchId: BigInt(roundIndex * 100 + matchIndex) },
+            });
+
+            if (chainResult) {
+              const matchId = `round-${roundIndex}-match-${matchIndex}`;
+              setBracketResults((prev) => ({
+                ...prev,
+                [matchId]: {
+                  winnerAddress: chainResult.winner,
+                  score: { left: Number(chainResult.leftScore), right: Number(chainResult.rightScore) },
+                  logs: [],
+                },
+              }));
+            }
+            break;
+          } catch (error) {
+            const message = String((error as Error)?.message || error);
+            if (message.toLowerCase().includes("vrf round not reached")) {
+              attempts += 1;
+              await wait(2000);
+              continue;
+            }
+            throw error;
+          }
+        }
+      }
+    }
+  };
+
   const autoPopulateBracket = async () => {
     if (!isAdmin) {
+      return;
+    }
+    if (!activeAddress || !contract) {
+      setError("Connect admin wallet before auto-populating.");
+      return;
+    }
+    if (!isAuthorizedAdmin) {
+      setError("Connected wallet is not the configured tournament admin.");
       return;
     }
     if (!isLatestSeason) {
@@ -313,11 +386,34 @@ export default function Home() {
       const nextSlots: string[] = [];
       const nextTeams: Record<string, TeamEntry> = {};
 
-      for (let slotIndex = 0; slotIndex < bracketSize; slotIndex += 1) {
-        const address =
-          slotIndex === 0 && activeAddress
-            ? activeAddress
-            : `dummy-slot-${String(slotIndex + 1).padStart(2, "0")}.algo`;
+      const info = await contract.getTournamentInfo({ sender: activeAddress, args: [] });
+      const onChainBracketSize = Number(info.bracketSize);
+      const onChainState = Number(info.state);
+      const onChainRegisteredCount = Number(info.registeredCount);
+
+      if (onChainBracketSize !== bracketSize) {
+        setBracketSize(onChainBracketSize as (typeof BRACKET_SIZE_OPTIONS)[number]);
+      }
+
+      if (onChainState === TOURNAMENT_STATE_CREATED) {
+        await contract.send.openRegistration({ sender: activeAddress, args: {} });
+      } else if (onChainState !== TOURNAMENT_STATE_OPEN) {
+        throw new Error(
+          `Tournament must be OPEN or CREATED to auto-populate (current: ${TOURNAMENT_STATE_LABELS[onChainState] ?? onChainState}).`
+        );
+      }
+
+      const existingSlotAddresses: string[] = [];
+      for (let slotIndex = 0; slotIndex < onChainRegisteredCount; slotIndex += 1) {
+        const existingAddress = await contract.getSlot({
+          sender: activeAddress,
+          args: { slotIndex: BigInt(slotIndex) },
+        });
+        existingSlotAddresses.push(existingAddress);
+      }
+
+      for (let slotIndex = 0; slotIndex < onChainBracketSize; slotIndex += 1) {
+        const address = existingSlotAddresses[slotIndex] ?? makeDummyAddress(slotIndex + 1);
         const assetIds = Array.from(
           { length: 5 },
           (_, horseIndex) => 900_000_000 + slotIndex * 10 + horseIndex
@@ -337,6 +433,20 @@ export default function Home() {
           assetIds,
           horses,
         };
+
+        if (slotIndex >= onChainRegisteredCount) {
+          await contract.send.adminRegisterMockTeam({
+            sender: activeAddress,
+            args: {
+              wallet: address,
+              assetId0: BigInt(assetIds[0]),
+              assetId1: BigInt(assetIds[1]),
+              assetId2: BigInt(assetIds[2]),
+              assetId3: BigInt(assetIds[3]),
+              assetId4: BigInt(assetIds[4]),
+            },
+          });
+        }
       }
 
       teamsCache.current = nextTeams;
@@ -344,6 +454,10 @@ export default function Home() {
       setTeams(nextTeams);
       setBracketResults({});
       setMatchHistory([]);
+      setBracketTab("bracket");
+
+      await runBracketOnChain(onChainBracketSize);
+      setRefreshTrigger((prev) => prev + 1);
 
     } catch (err) {
       setError((err as Error).message);
@@ -428,19 +542,6 @@ export default function Home() {
     },
     [bracketSlots, loadTeamForAddress]
   );
-
-  useEffect(() => {
-    if (!hasSeasonRegistry) {
-      return;
-    }
-    if (!activeAddress) {
-      return;
-    }
-    if (bracketSlots[0]) {
-      return;
-    }
-    assignBracketAddress(0, activeAddress);
-  }, [activeAddress, bracketSlots, assignBracketAddress, hasSeasonRegistry]);
 
   useEffect(() => {
     if (!hasSeasonRegistry) {
