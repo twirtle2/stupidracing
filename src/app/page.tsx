@@ -6,13 +6,16 @@ import { useWallet } from "@txnlab/use-wallet-react";
 import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
 import { useTournamentContract } from "@/hooks/useTournamentContract";
 import { StupidRacingTournamentFactory } from "@/lib/contracts/StupidRacingTournamentClient";
+import { env } from "@/lib/config";
 
 import type { StupidHorseAsset } from "@/lib/stupidhorse";
 import { fetchNfdForAddresses, shortAddress } from "@/lib/nfd";
 
 
-const BRACKET_SIZE_OPTIONS = [2, 4, 8, 16, 32] as const;
-const DEFAULT_BEACON_APP_ID = process.env.NEXT_PUBLIC_BEACON_APP_ID || "600011887";
+const BRACKET_SIZE_OPTIONS = [2, 4, 8, 16, 32, 64] as const;
+const DEFAULT_BEACON_BY_NETWORK =
+  env.network === "mainnet" ? "1615566206" : env.network === "testnet" ? "600011887" : "1";
+const DEFAULT_BEACON_APP_ID = env.beaconAppId || DEFAULT_BEACON_BY_NETWORK;
 
 type HorseProfile = {
   asset_id: number;
@@ -71,8 +74,8 @@ type SeasonDescriptor = {
   isLatest: boolean;
 };
 
-
-const READ_ONLY_SENDER = "CMYTBDMMKVKJSN4YO7BSVMBJCVTC2GBG6BY22Z4KKIUDNZGKUQI54MNTHU";
+const READ_ONLY_SENDER = env.readOnlySender;
+const NETWORK_LABEL = env.networkLabel;
 const TOURNAMENT_STATE_LABELS: Record<number, string> = {
   0: "Created",
   1: "Open",
@@ -190,6 +193,11 @@ export default function Home() {
 
 
   const stableAddress = stableAddressOverride.trim() || activeAddress || "";
+  const isAuthorizedAdmin = Boolean(
+    activeAddress &&
+    env.tournamentAdminAddress &&
+    activeAddress === env.tournamentAdminAddress
+  );
   const activeAppIdParam = selectedSeasonMeta?.appId || "";
   const seasonQuery = useMemo(() => {
     const params = new URLSearchParams();
@@ -205,6 +213,19 @@ export default function Home() {
       return "";
     }
     return nfdMap[address] ?? shortAddress(address);
+  };
+
+  const formatRunMatchError = (error: unknown) => {
+    const message = (error as Error)?.message || String(error);
+    const lower = message.toLowerCase();
+
+    if (lower.includes("fee") || lower.includes("pool")) {
+      return `${message} (Hint: provide extra fee budget for the beacon inner call.)`;
+    }
+    if (lower.includes("beacon") || lower.includes("app") || lower.includes("log")) {
+      return `${message} (Hint: verify the configured randomness beacon app ID for this season.)`;
+    }
+    return message;
   };
 
   useEffect(() => {
@@ -626,6 +647,14 @@ export default function Home() {
       setError("Connect admin wallet to create a new season.");
       return;
     }
+    if (!env.tournamentAdminAddress) {
+      setError("Set NEXT_PUBLIC_TOURNAMENT_ADMIN_ADDRESS to enable admin-only season creation.");
+      return;
+    }
+    if (!isAuthorizedAdmin) {
+      setError("Connected wallet is not the configured tournament admin.");
+      return;
+    }
     if (!isLatestSeason) {
       setError("Switch to the latest season before creating the next season.");
       return;
@@ -642,7 +671,7 @@ export default function Home() {
 
     const parsedBracket = Number(bracketInput);
     if (!BRACKET_SIZE_OPTIONS.includes(parsedBracket as (typeof BRACKET_SIZE_OPTIONS)[number])) {
-      setError("Invalid bracket size. Use one of: 2, 4, 8, 16, 32.");
+      setError("Invalid bracket size. Use one of: 2, 4, 8, 16, 32, 64.");
       return;
     }
     const nextBracketSize = parsedBracket as (typeof BRACKET_SIZE_OPTIONS)[number];
@@ -759,9 +788,14 @@ export default function Home() {
       };
       console.log("[Register] sending registerTeam", args);
 
-      await contract.send.registerTeam({ args });
+      await contract.send.registerTeam({
+        sender: activeAddress,
+        args,
+        // The generated client type does not expose foreign assets yet; runtime supports it.
+        assets: team.map((assetId) => BigInt(assetId)),
+      } as unknown as Parameters<typeof contract.send.registerTeam>[0]);
 
-      alert("Registration successful on TestNet!");
+      alert(`Registration successful on ${NETWORK_LABEL}!`);
 
       // Refresh global state
       setRefreshTrigger((prev) => prev + 1);
@@ -787,7 +821,9 @@ export default function Home() {
     const rounds: Array<{ name: string; matches: number[] }> = [];
     let matchCount = bracketSize / 2;
     const roundName =
-      bracketSize === 32
+      bracketSize === 64
+        ? "Round of 64"
+        : bracketSize === 32
         ? "Round of 32"
         : bracketSize === 16
           ? "Round of 16"
@@ -852,16 +888,26 @@ export default function Home() {
         setError("Connect an admin wallet to run on-chain matches.");
         return;
       }
+      if (!env.tournamentAdminAddress) {
+        setError("Set NEXT_PUBLIC_TOURNAMENT_ADMIN_ADDRESS to enforce admin match execution.");
+        return;
+      }
+      if (!isAuthorizedAdmin) {
+        setError("Connected wallet is not the configured tournament admin.");
+        return;
+      }
       if (!isLatestSeason) {
         setError("On-chain match execution is disabled for past seasons.");
         return;
       }
 
       await contract.send.runMatch({
+        sender: activeAddress,
         args: {
           roundIndex: BigInt(roundIndex),
           matchIndex: BigInt(matchIndex),
         },
+        extraFee: AlgoAmount.MicroAlgos(1000),
       });
 
       const chainResult = await contract.getMatchResult({
@@ -889,7 +935,7 @@ export default function Home() {
       setRefreshTrigger(prev => prev + 1);
 
     } catch (err) {
-      setError(`On-chain match failed: ${(err as Error).message}`);
+      setError(`On-chain match failed: ${formatRunMatchError(err)}`);
     } finally {
       setSimulatingMatch(null);
     }
@@ -1283,7 +1329,7 @@ export default function Home() {
                   </div>
                   {!contract && (
                     <div className="mt-2 text-xs text-red-400 bg-red-900/20 px-2 py-1 rounded inline-block">
-                      Contract not connected (Check Env Vars)
+                      Contract not connected on {NETWORK_LABEL} (check env config)
                     </div>
                   )}
                 </div>
@@ -1307,6 +1353,14 @@ export default function Home() {
                     <button
                       onClick={async () => {
                         if (!contract) return;
+                        if (!env.tournamentAdminAddress) {
+                          alert("Set NEXT_PUBLIC_TOURNAMENT_ADMIN_ADDRESS to enforce admin actions.");
+                          return;
+                        }
+                        if (!isAuthorizedAdmin) {
+                          alert("Connected wallet is not the configured tournament admin.");
+                          return;
+                        }
                         if (!isLatestSeason) {
                           alert("Contract administration is disabled for past seasons.");
                           return;
@@ -1326,7 +1380,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={createNextSeasonOnChain}
-                      disabled={creatingSeason || !isLatestSeason}
+                      disabled={creatingSeason || !isLatestSeason || !isAuthorizedAdmin}
                       className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
                     >
                       {creatingSeason ? "Creating..." : "Create New"}
@@ -1373,7 +1427,7 @@ export default function Home() {
                     value={bracketSize}
                     disabled={!isLatestSeason}
                     onChange={(event) => {
-                      const next = Number(event.target.value) as 2 | 4 | 8 | 16 | 32;
+                      const next = Number(event.target.value) as 2 | 4 | 8 | 16 | 32 | 64;
                       setBracketSize(next);
                       setBracketSlots(Array(next).fill(""));
                     }}
@@ -1383,6 +1437,7 @@ export default function Home() {
                     <option value={8}>8 Slots</option>
                     <option value={16}>16 Slots</option>
                     <option value={32}>32 Slots</option>
+                    <option value={64}>64 Slots</option>
                   </select>
                   <button
                     className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:bg-white/10"
@@ -1515,7 +1570,7 @@ export default function Home() {
                                     </div>
                                     <div className="flex items-center gap-4 px-3 py-1">
                                       <div className="h-[1px] flex-grow bg-white/10" />
-                                      {isAdmin && isLatestSeason && addressA && addressB && !result && (
+                                      {isAdmin && isAuthorizedAdmin && isLatestSeason && addressA && addressB && !result && (
                                         <button
                                           onClick={() => runBracketMatch(roundIndex, matchIndex)}
                                           disabled={!!simulatingMatch}

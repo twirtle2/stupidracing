@@ -1,19 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { useWallet } from '@txnlab/use-wallet-react';
-import { AlgorandClient } from '@algorandfoundation/algokit-utils';
 import { TransactionSigner, Transaction } from 'algosdk';
 import { StupidRacingTournamentClient } from '@/lib/contracts/StupidRacingTournamentClient';
-
-const ALGOD_SERVER = process.env.NEXT_PUBLIC_ALGOD_URL || 'https://testnet-api.algonode.cloud';
-const INDEXER_SERVER = process.env.NEXT_PUBLIC_INDEXER_URL || 'https://testnet-idx.algonode.cloud';
-
-function parseNodeUrl(urlInput: string, defaultPort: number) {
-    const url = new URL(urlInput);
-    return {
-        server: `${url.protocol}//${url.hostname}`,
-        port: Number(url.port || defaultPort),
-    };
-}
+import { createAlgorandClient } from "@/lib/algorand-client";
+import { env } from "@/lib/config";
 
 export function useTournamentContract(appId: bigint | null) {
     const { activeAccount, signTransactions } = useWallet();
@@ -21,21 +11,7 @@ export function useTournamentContract(appId: bigint | null) {
     // Memoize the base AlgorandClient once
     const algorand = useMemo(() => {
         try {
-            const algod = parseNodeUrl(ALGOD_SERVER, ALGOD_SERVER.startsWith("https") ? 443 : 80);
-            const indexer = parseNodeUrl(INDEXER_SERVER, INDEXER_SERVER.startsWith("https") ? 443 : 80);
-
-            return AlgorandClient.fromConfig({
-                algodConfig: {
-                    server: algod.server,
-                    port: algod.port,
-                    token: '',
-                },
-                indexerConfig: {
-                    server: indexer.server,
-                    port: indexer.port,
-                    token: '',
-                },
-            });
+            return createAlgorandClient();
         } catch (err) {
             console.error("[TournamentContract] failed to create algorand client:", err);
             return null;
@@ -71,7 +47,7 @@ export function useTournamentContract(appId: bigint | null) {
             return new StupidRacingTournamentClient({
                 appId,
                 algorand,
-                defaultSender: activeAccount?.address,
+                defaultSender: activeAccount?.address ?? env.readOnlySender,
             });
         } catch (err) {
             console.error("[TournamentContract] failed to create tournament client:", err);

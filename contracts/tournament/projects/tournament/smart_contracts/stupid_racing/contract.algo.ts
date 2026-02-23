@@ -1,5 +1,6 @@
-import type { Account, bytes, uint64 } from '@algorandfoundation/algorand-typescript'
+import type { Account as AccountType, bytes, uint64 } from '@algorandfoundation/algorand-typescript'
 import {
+    Account,
     abimethod,
     arc4,
     assert,
@@ -31,9 +32,9 @@ type TeamRegistration = {
  * Match result stored on-chain
  */
 type MatchResult = {
-    leftWallet: Account
-    rightWallet: Account
-    winner: Account
+    leftWallet: AccountType
+    rightWallet: AccountType
+    winner: AccountType
     leftScore: uint64
     rightScore: uint64
     seed: bytes     // The random seed used for this match verification
@@ -51,6 +52,7 @@ const STATE_CANCELLED: uint64 = Uint64(5)
 const START_POS: uint64 = Uint64(50)
 const CLIFF_THRESHOLD: uint64 = Uint64(50)
 const FINISH_THRESHOLD: uint64 = Uint64(71) // 50 + 21
+const ENFORCE_CREATOR_ALLOWLIST = false
 
 /**
  * StupidHorse Racing Tournament Contract
@@ -59,13 +61,13 @@ export class StupidRacingTournament extends arc4.Contract {
     beaconAppId = GlobalState<uint64>({ key: Bytes`beacon_app_id` })
     season = GlobalState<uint64>({ key: Bytes`season` })
     bracketSize = GlobalState<uint64>({ key: Bytes`bracket_size` })
-    admin = GlobalState<Account>({ key: Bytes`admin` })
+    admin = GlobalState<AccountType>({ key: Bytes`admin` })
     state = GlobalState<uint64>({ key: Bytes`state` })
     registeredCount = GlobalState<uint64>({ key: Bytes`registered_count` })
     vrfCommitRound = GlobalState<uint64>({ key: Bytes`vrf_commit_round` })
-    champion = GlobalState<Account>({ key: Bytes`champion` })
-    teams = BoxMap<Account, TeamRegistration>({ keyPrefix: Bytes`t` })
-    bracketSlots = BoxMap<uint64, Account>({ keyPrefix: Bytes`s` })
+    champion = GlobalState<AccountType>({ key: Bytes`champion` })
+    teams = BoxMap<AccountType, TeamRegistration>({ keyPrefix: Bytes`t` })
+    bracketSlots = BoxMap<uint64, AccountType>({ keyPrefix: Bytes`s` })
     matchResults = BoxMap<uint64, MatchResult>({ keyPrefix: Bytes`m` })
 
     @abimethod({ onCreate: 'require' })
@@ -109,6 +111,12 @@ export class StupidRacingTournament extends arc4.Contract {
     ): void {
         assert(this.state.value === STATE_REGISTRATION_OPEN, 'Registration is not open')
         assert(!this.teams(Txn.sender).exists, 'Team already registered')
+        this.assertUniqueAssets(assetId0, assetId1, assetId2, assetId3, assetId4)
+        this.assertOwnedAllowedAsset(assetId0)
+        this.assertOwnedAllowedAsset(assetId1)
+        this.assertOwnedAllowedAsset(assetId2)
+        this.assertOwnedAllowedAsset(assetId3)
+        this.assertOwnedAllowedAsset(assetId4)
 
         const currentCount: uint64 = this.registeredCount.value
         assert(currentCount < this.bracketSize.value, 'Bracket is full')
@@ -144,13 +152,13 @@ export class StupidRacingTournament extends arc4.Contract {
     }
 
     @abimethod({ readonly: true })
-    public getTeam(wallet: Account): TeamRegistration {
+    public getTeam(wallet: AccountType): TeamRegistration {
         assert(this.teams(wallet).exists, 'Team not registered')
         return clone(this.teams(wallet).value)
     }
 
     @abimethod({ readonly: true })
-    public getSlot(slotIndex: uint64): Account {
+    public getSlot(slotIndex: uint64): AccountType {
         assert(this.bracketSlots(slotIndex).exists, 'Slot is empty')
         return this.bracketSlots(slotIndex).value
     }
@@ -178,11 +186,13 @@ export class StupidRacingTournament extends arc4.Contract {
 
     @abimethod()
     public runMatch(roundIndex: uint64, matchIndex: uint64): void {
+        assert(Txn.sender === this.admin.value, 'Only admin can run matches')
         assert(
             this.state.value === STATE_LOCKED || this.state.value === STATE_RACING,
             'Tournament not ready'
         )
         assert(Global.round >= this.vrfCommitRound.value, 'VRF round not reached')
+        assert(Txn.fee >= Global.minTxnFee + Global.minTxnFee, 'Insufficient fee pooling for beacon call')
 
         const matchId: uint64 = roundIndex * Uint64(100) + matchIndex
         assert(!this.matchResults(matchId).exists, 'Match already played')
@@ -210,8 +220,8 @@ export class StupidRacingTournament extends arc4.Contract {
         const vrfOutput = op.extract(rawLog, Uint64(6), Uint64(32))
 
         // Determine participants
-        let leftWallet: Account = Global.creatorAddress
-        let rightWallet: Account = Global.creatorAddress
+        let leftWallet: AccountType = Global.creatorAddress
+        let rightWallet: AccountType = Global.creatorAddress
 
         if (roundIndex === Uint64(0)) {
             leftWallet = this.bracketSlots(matchIndex * Uint64(2)).value
@@ -320,7 +330,55 @@ export class StupidRacingTournament extends arc4.Contract {
     }
 
     @abimethod({ readonly: true })
-    public getChampion(): Account {
+    public getChampion(): AccountType {
         return this.champion.value
+    }
+
+    private assertUniqueAssets(
+        assetId0: uint64,
+        assetId1: uint64,
+        assetId2: uint64,
+        assetId3: uint64,
+        assetId4: uint64
+    ): void {
+        assert(assetId0 > Uint64(0), 'Asset ID must be positive')
+        assert(assetId1 > Uint64(0), 'Asset ID must be positive')
+        assert(assetId2 > Uint64(0), 'Asset ID must be positive')
+        assert(assetId3 > Uint64(0), 'Asset ID must be positive')
+        assert(assetId4 > Uint64(0), 'Asset ID must be positive')
+        assert(assetId0 !== assetId1, 'Team assets must be unique')
+        assert(assetId0 !== assetId2, 'Team assets must be unique')
+        assert(assetId0 !== assetId3, 'Team assets must be unique')
+        assert(assetId0 !== assetId4, 'Team assets must be unique')
+        assert(assetId1 !== assetId2, 'Team assets must be unique')
+        assert(assetId1 !== assetId3, 'Team assets must be unique')
+        assert(assetId1 !== assetId4, 'Team assets must be unique')
+        assert(assetId2 !== assetId3, 'Team assets must be unique')
+        assert(assetId2 !== assetId4, 'Team assets must be unique')
+        assert(assetId3 !== assetId4, 'Team assets must be unique')
+    }
+
+    private assertOwnedAllowedAsset(assetId: uint64): void {
+        const [balance, holdingExists] = op.AssetHolding.assetBalance(Txn.sender, assetId)
+        assert(holdingExists && balance > Uint64(0), 'Sender must own each horse asset')
+
+        const [assetTotal, totalExists] = op.AssetParams.assetTotal(assetId)
+        assert(totalExists && assetTotal === Uint64(1), 'Horse asset must be an NFT')
+
+        if (!ENFORCE_CREATOR_ALLOWLIST) {
+            return
+        }
+
+        const creator0 = Account('GLOW7AKCAZXWQRPI6Q7OCVAO75H45AIYMTDEH3VNPETKYFXMNHAMQOVMS4')
+        const creator1 = Account('STPD5WZ7DMF2RBBGROROWS6U2HNKC4SOHZXTFDTRIWHTXQ46TA7HU3A2SI')
+        const creator2 = Account('2INYXKE3I465ED7HGFELKC2WDSA3R4V3A7BEZDJ7RWFNSFU2OQW44WZBAM')
+        const [creator, creatorExists] = op.AssetParams.assetCreator(assetId)
+        assert(creatorExists, 'Asset creator unavailable')
+        assert(
+            creator === creator0 ||
+            creator === creator1 ||
+            creator === creator2,
+            'Horse asset not in collection allowlist'
+        )
     }
 }

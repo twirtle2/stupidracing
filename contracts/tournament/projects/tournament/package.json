@@ -11,7 +11,9 @@
     "lint:fix": "eslint smart_contracts --fix",
     "audit": "better-npm-audit audit",
     "format": "prettier --write .",
-    "test": "vitest run --coverage",
+    "test": "vitest run --coverage --exclude \"**/*.e2e.spec.ts\"",
+    "test:e2e": "algokit localnet status >/dev/null && vitest run \"smart_contracts/**/*.e2e.spec.ts\"",
+    "test:all": "npm run test && npm run test:e2e",
     "test:watch": "vitest watch",
     "check-types": "tsc --noEmit"
   },

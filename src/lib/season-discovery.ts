@@ -1,16 +1,12 @@
 import "server-only";
 
-import { AlgorandClient } from "@algorandfoundation/algokit-utils";
 import { encodeAddress } from "algosdk";
 
+import { createAlgorandClient } from "@/lib/algorand-client";
+import { env } from "@/lib/config";
 import { StupidRacingTournamentClient } from "@/lib/contracts/StupidRacingTournamentClient";
 import { listSeasons as listConfiguredSeasons } from "@/lib/season-registry";
 
-const DEFAULT_ALGOD = "https://testnet-api.algonode.cloud";
-const DEFAULT_INDEXER = "https://testnet-idx.algonode.cloud";
-const DEFAULT_SENDER =
-  process.env.NEXT_PUBLIC_READ_ONLY_SENDER ||
-  "CMYTBDMMKVKJSN4YO7BSVMBJCVTC2GBG6BY22Z4KKIUDNZGKUQI54MNTHU";
 const ADMIN_STATE_KEY_B64 = "YWRtaW4=";
 
 type SeasonDescriptor = {
@@ -39,39 +35,9 @@ type ApplicationInfoResponse = {
   };
 };
 
-function parseNodeUrl(urlInput: string, defaultPort: number) {
-  const url = new URL(urlInput);
-  return {
-    server: `${url.protocol}//${url.hostname}`,
-    port: Number(url.port || defaultPort),
-    base: `${url.protocol}//${url.host}`,
-  };
-}
-
 function getIndexerBaseUrl() {
-  const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || DEFAULT_INDEXER;
-  const parsed = parseNodeUrl(indexerUrl, indexerUrl.startsWith("https") ? 443 : 80);
-  return parsed.base;
-}
-
-function getAlgorandClient() {
-  const algodUrl = process.env.NEXT_PUBLIC_ALGOD_URL || DEFAULT_ALGOD;
-  const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || DEFAULT_INDEXER;
-  const algod = parseNodeUrl(algodUrl, algodUrl.startsWith("https") ? 443 : 80);
-  const indexer = parseNodeUrl(indexerUrl, indexerUrl.startsWith("https") ? 443 : 80);
-
-  return AlgorandClient.fromConfig({
-    algodConfig: {
-      server: algod.server,
-      port: algod.port,
-      token: process.env.ALGOD_TOKEN || "",
-    },
-    indexerConfig: {
-      server: indexer.server,
-      port: indexer.port,
-      token: process.env.INDEXER_TOKEN || "",
-    },
-  });
+  const url = new URL(env.indexerUrl);
+  return `${url.protocol}//${url.host}`;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -148,7 +114,7 @@ async function listCreatedApplications(address: string) {
 }
 
 async function probeSeasonApps(appIds: Array<{ appId: number; createdAtRound?: number }>) {
-  const algorand = getAlgorandClient();
+  const algorand = createAlgorandClient();
   const candidates: Array<{ season: number; appId: number; createdAtRound?: number }> = [];
 
   const chunkSize = 12;
@@ -160,9 +126,9 @@ async function probeSeasonApps(appIds: Array<{ appId: number; createdAtRound?: n
           const client = new StupidRacingTournamentClient({
             appId: BigInt(entry.appId),
             algorand,
-            defaultSender: DEFAULT_SENDER,
+            defaultSender: env.readOnlySender,
           });
-          const info = await client.send.getTournamentInfo({ args: [], sender: DEFAULT_SENDER });
+          const info = await client.send.getTournamentInfo({ args: [], sender: env.readOnlySender });
           if (!info.return) {
             return null;
           }

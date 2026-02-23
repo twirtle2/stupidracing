@@ -62,3 +62,19 @@ create policy "race_results_public_read"
 create policy "race_results_public_write"
   on public.race_results for insert
   with check (true);
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists horse_profiles_set_updated_at on public.horse_profiles;
+create trigger horse_profiles_set_updated_at
+before update on public.horse_profiles
+for each row
+execute function public.set_updated_at();

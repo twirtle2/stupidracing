@@ -51,16 +51,24 @@ export function Providers({ children }: { children: React.ReactNode }) {
     if (env.network === "testnet") {
       builder = builder.testnet({
         algod: {
-          baseServer: env.algodUrl || "https://testnet-api.algonode.cloud",
-          token: "",
+          baseServer: env.algodUrl,
+          token: env.algodToken,
+        },
+        isTestnet: true,
+      });
+    } else if (env.network === "localnet") {
+      builder = builder.localnet({
+        algod: {
+          baseServer: env.algodUrl,
+          token: env.algodToken,
         },
         isTestnet: true,
       });
     } else {
       builder = builder.mainnet({
         algod: {
-          baseServer: env.algodUrl || "https://mainnet-api.algonode.cloud",
-          token: "",
+          baseServer: env.algodUrl,
+          token: env.algodToken,
         },
         isTestnet: false,
       });
@@ -71,7 +79,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return new WalletManager({
       wallets: buildWallets(),
       networks,
-      defaultNetwork: env.network === "testnet" ? NetworkId.TESTNET : NetworkId.MAINNET,
+      defaultNetwork:
+        env.network === "testnet"
+          ? NetworkId.TESTNET
+          : env.network === "localnet"
+            ? NetworkId.LOCALNET
+            : NetworkId.MAINNET,
     });
   }, []);
 

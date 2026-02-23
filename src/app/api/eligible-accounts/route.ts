@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
+import { env } from "@/lib/config";
 import { fetchCreatorAssets } from "@/lib/indexer";
 import { STUPIDHORSE_CREATORS } from "@/lib/stupidhorse";
 
@@ -24,7 +25,7 @@ async function fetchWithRetry(url: string, retries = 3) {
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const limit = Math.min(Number(searchParams.get("limit") ?? 8), 64);
-    const baseUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "https://mainnet-idx.algonode.cloud";
+    const baseUrl = env.indexerUrl;
 
     try {
         const creatorAssetsResults = await Promise.all(

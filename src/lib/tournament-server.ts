@@ -1,18 +1,13 @@
 import "server-only";
 
-import { AlgorandClient } from "@algorandfoundation/algokit-utils";
 import {
   StupidRacingTournamentClient,
   type MatchResult,
   type TeamRegistration,
 } from "@/lib/contracts/StupidRacingTournamentClient";
+import { createAlgorandClient } from "@/lib/algorand-client";
+import { env } from "@/lib/config";
 import { resolveSeasonEntry } from "@/lib/season-registry";
-
-const DEFAULT_ALGOD = "https://testnet-api.algonode.cloud";
-const DEFAULT_INDEXER = "https://testnet-idx.algonode.cloud";
-const DEFAULT_SENDER =
-  process.env.NEXT_PUBLIC_READ_ONLY_SENDER ||
-  "CMYTBDMMKVKJSN4YO7BSVMBJCVTC2GBG6BY22Z4KKIUDNZGKUQI54MNTHU";
 
 type TournamentQueryOptions = {
   season?: number;
@@ -41,42 +36,19 @@ type ChainMatch = {
   created_at: string;
 };
 
-function parseNodeUrl(urlInput: string, defaultPort: number) {
-  const url = new URL(urlInput);
-  return {
-    server: `${url.protocol}//${url.hostname}`,
-    port: Number(url.port || defaultPort),
-  };
-}
-
-function getAlgorandClient() {
-  const algodUrl = process.env.NEXT_PUBLIC_ALGOD_URL || DEFAULT_ALGOD;
-  const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || DEFAULT_INDEXER;
-  const algod = parseNodeUrl(algodUrl, algodUrl.startsWith("https") ? 443 : 80);
-  const indexer = parseNodeUrl(indexerUrl, indexerUrl.startsWith("https") ? 443 : 80);
-
-  return AlgorandClient.fromConfig({
-    algodConfig: {
-      server: algod.server,
-      port: algod.port,
-      token: process.env.ALGOD_TOKEN || "",
-    },
-    indexerConfig: {
-      server: indexer.server,
-      port: indexer.port,
-      token: process.env.INDEXER_TOKEN || "",
-    },
-  });
-}
+type ResolvedMeta = {
+  resolvedAppId: string;
+  resolvedSeason: number;
+};
 
 function createTournamentClient(options: TournamentQueryOptions = {}) {
-  const algorand = getAlgorandClient();
+  const algorand = createAlgorandClient();
   const resolved = resolveSeasonEntry(options);
 
   const client = new StupidRacingTournamentClient({
     appId: resolved.appId,
     algorand,
-    defaultSender: DEFAULT_SENDER,
+    defaultSender: env.readOnlySender,
   });
 
   return { client, resolved };
@@ -102,13 +74,22 @@ function syntheticTimestamp(roundIndex: number, matchIndex: number) {
   return new Date(base + offset).toISOString();
 }
 
-async function getTournamentInfoFromClient(client: StupidRacingTournamentClient, appId: bigint) {
-  const info = await client.send.getTournamentInfo({ args: [], sender: DEFAULT_SENDER });
+async function getTournamentInfoFromClient(
+  client: StupidRacingTournamentClient,
+  appId: bigint
+): Promise<ResolvedMeta & {
+  season: number;
+  bracketSize: number;
+  registeredCount: number;
+  state: number;
+}> {
+  const info = await client.send.getTournamentInfo({ args: [], sender: env.readOnlySender });
   if (!info.return) {
     throw new Error("Tournament info unavailable");
   }
   return {
-    appId: appId.toString(),
+    resolvedAppId: appId.toString(),
+    resolvedSeason: Number(info.return.season),
     season: Number(info.return.season),
     bracketSize: Number(info.return.bracketSize),
     registeredCount: Number(info.return.registeredCount),
@@ -124,7 +105,7 @@ async function getTeamEntryFromClient(
   try {
     const response = await client.send.getTeam({
       args: { wallet: address },
-      sender: DEFAULT_SENDER,
+      sender: env.readOnlySender,
     });
 
     if (!response.return) {
@@ -147,11 +128,19 @@ export async function getTournamentInfo(options: TournamentQueryOptions = {}) {
   return getTournamentInfoFromClient(client, resolved.appId);
 }
 
-export async function getTeamEntry(address: string, options: TournamentQueryOptions = {}): Promise<TeamEntry | null> {
+export async function getTeamEntry(
+  address: string,
+  options: TournamentQueryOptions = {}
+): Promise<ResolvedMeta & { entry: TeamEntry | null }> {
   const { client, resolved } = createTournamentClient(options);
   const info = await getTournamentInfoFromClient(client, resolved.appId);
+  const entry = await getTeamEntryFromClient(client, info.season, address);
 
-  return getTeamEntryFromClient(client, info.season, address);
+  return {
+    resolvedAppId: info.resolvedAppId,
+    resolvedSeason: info.resolvedSeason,
+    entry,
+  };
 }
 
 export async function listTeamEntries(options: TournamentQueryOptions = {}) {
@@ -162,7 +151,7 @@ export async function listTeamEntries(options: TournamentQueryOptions = {}) {
   for (let i = 0; i < info.registeredCount; i += 1) {
     const slot = await client.send.getSlot({
       args: { slotIndex: BigInt(i) },
-      sender: DEFAULT_SENDER,
+      sender: env.readOnlySender,
     });
     const address = slot.return;
     if (!address) {
@@ -177,15 +166,15 @@ export async function listTeamEntries(options: TournamentQueryOptions = {}) {
   }
 
   return {
-    appId: info.appId,
-    season: info.season,
+    resolvedAppId: info.resolvedAppId,
+    resolvedSeason: info.resolvedSeason,
     entries,
   };
 }
 
 export async function listMatchResults(
   options: TournamentQueryOptions & { addressFilter?: string } = {}
-) {
+): Promise<ResolvedMeta & { results: ChainMatch[] }> {
   const { client, resolved } = createTournamentClient(options);
   const info = await getTournamentInfoFromClient(client, resolved.appId);
   const rounds = totalRoundsForBracket(info.bracketSize);
@@ -211,7 +200,7 @@ export async function listMatchResults(
       try {
         const call = await client.send.getMatchResult({
           args: { matchId: BigInt(matchId) },
-          sender: DEFAULT_SENDER,
+          sender: env.readOnlySender,
         });
         result = call.return;
       } catch {
@@ -255,5 +244,9 @@ export async function listMatchResults(
     }
   }
 
-  return results.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return {
+    resolvedAppId: info.resolvedAppId,
+    resolvedSeason: info.resolvedSeason,
+    results: results.sort((a, b) => b.created_at.localeCompare(a.created_at)),
+  };
 }
