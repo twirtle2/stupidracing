@@ -8,7 +8,7 @@ import { useTournamentContract } from "@/hooks/useTournamentContract";
 import { StupidRacingTournamentFactory } from "@/lib/contracts/StupidRacingTournamentClient";
 import { env } from "@/lib/config";
 
-import type { StupidHorseAsset } from "@/lib/stupidhorse";
+import { STUPIDHORSE_ASSETS, type StupidHorseAsset } from "@/lib/stupidhorse";
 import { fetchNfdForAddresses, shortAddress } from "@/lib/nfd";
 
 
@@ -76,6 +76,7 @@ type SeasonDescriptor = {
 
 const READ_ONLY_SENDER = env.readOnlySender;
 const NETWORK_LABEL = env.networkLabel;
+const ADMIN_CONTROLLER_NFD = "twirtle2.algo";
 const TOURNAMENT_STATE_LABELS: Record<number, string> = {
   0: "Created",
   1: "Open",
@@ -193,6 +194,8 @@ export default function Home() {
 
 
   const stableAddress = stableAddressOverride.trim() || activeAddress || "";
+  const connectedNfd = activeAddress ? (nfdMap[activeAddress] ?? "").toLowerCase() : "";
+  const canUseAdminMode = connectedNfd === ADMIN_CONTROLLER_NFD;
   const isAuthorizedAdmin = Boolean(
     activeAddress &&
     env.tournamentAdminAddress &&
@@ -265,6 +268,12 @@ export default function Home() {
     fetchNfds();
   }, [stableAddress, activeAddress, bracketSlots, matchHistory]);
 
+  useEffect(() => {
+    if (!canUseAdminMode && isAdmin) {
+      setIsAdmin(false);
+    }
+  }, [canUseAdminMode, isAdmin]);
+
 
   const teamAssets = useMemo(
     () => ownedHorses.filter((horse) => team.includes(horse.assetId)),
@@ -296,52 +305,45 @@ export default function Home() {
       return;
     }
     setIsPopulating(true);
+    setError(null);
     try {
+      const sourceImages = STUPIDHORSE_ASSETS.length > 0
+        ? STUPIDHORSE_ASSETS
+        : [{ assetId: 1, imageUrl: "https://ipfs.io/ipfs/bafkreif4lli2jm3wqit5z7y2exbh4wwxwy5q4laxshjnkhzf4ptgox3nla", name: "Horse", unitName: "HORSE" }];
+      const nextSlots: string[] = [];
+      const nextTeams: Record<string, TeamEntry> = {};
 
-      const res = await fetch(`/api/eligible-accounts?limit=${bracketSize}`);
-      if (!res.ok) {
-        throw new Error("Failed to query eligible accounts");
+      for (let slotIndex = 0; slotIndex < bracketSize; slotIndex += 1) {
+        const address =
+          slotIndex === 0 && activeAddress
+            ? activeAddress
+            : `dummy-slot-${String(slotIndex + 1).padStart(2, "0")}.algo`;
+        const assetIds = Array.from(
+          { length: 5 },
+          (_, horseIndex) => 900_000_000 + slotIndex * 10 + horseIndex
+        );
+        const horses: OwnedHorse[] = assetIds.map((assetId, horseIndex) => {
+          const imageSeed = sourceImages[(slotIndex * 5 + horseIndex) % sourceImages.length];
+          return {
+            assetId,
+            name: `Dummy Horse ${slotIndex + 1}-${horseIndex + 1}`,
+            unitName: `DMY${slotIndex + 1}${horseIndex + 1}`,
+            imageUrl: imageSeed.imageUrl,
+          };
+        });
+        nextSlots.push(address);
+        nextTeams[address] = {
+          address,
+          assetIds,
+          horses,
+        };
       }
-      const data = (await res.json()) as {
-        accounts: Array<{ address: string; assetIds: number[] }>;
-      };
 
-      if (data.accounts.length === 0) {
-        setError("No eligible accounts found with 5+ horses.");
-        return;
-      }
-
-      const addresses = data.accounts.map(a => a.address);
-      const padded = addresses.concat(Array(bracketSize).fill("")).slice(0, bracketSize);
-      setBracketSlots(padded);
-
-      const newTeams: Record<string, TeamEntry> = { ...teams };
-
-      await Promise.all(
-        data.accounts.map(async (account) => {
-          const shuffledAssets = account.assetIds.sort(() => 0.5 - Math.random());
-          const selectedAssetIds = shuffledAssets.slice(0, 5);
-
-          const assetsRes = await fetch("/api/asset-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              assetIds: selectedAssetIds,
-              includeMetadata: true,
-            }),
-          });
-
-          if (assetsRes.ok) {
-            const assetsData = await assetsRes.json();
-            newTeams[account.address] = {
-              address: account.address,
-              assetIds: selectedAssetIds,
-              horses: assetsData.assets
-            };
-          }
-        })
-      );
-      setTeams(newTeams);
+      teamsCache.current = nextTeams;
+      setBracketSlots(nextSlots);
+      setTeams(nextTeams);
+      setBracketResults({});
+      setMatchHistory([]);
 
     } catch (err) {
       setError((err as Error).message);
@@ -995,20 +997,22 @@ export default function Home() {
             </nav>
 
             <div className="flex items-center gap-6 flex-shrink-0">
-              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
-                <span>User</span>
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input
-                    className="peer sr-only"
-                    type="checkbox"
-                    checked={isAdmin}
-                    onChange={(event) => setIsAdmin(event.target.checked)}
-                  />
-                  <div className="h-5 w-10 rounded-full bg-white/10 ring-1 ring-white/10 transition-colors peer-checked:bg-[var(--accent)]" />
-                  <div className="absolute left-1 top-1 h-3 w-3 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
-                </label>
-                <span>Admin</span>
-              </div>
+              {canUseAdminMode && (
+                <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                  <span>User</span>
+                  <label className="relative inline-flex cursor-pointer items-center">
+                    <input
+                      className="peer sr-only"
+                      type="checkbox"
+                      checked={isAdmin}
+                      onChange={(event) => setIsAdmin(event.target.checked)}
+                    />
+                    <div className="h-5 w-10 rounded-full bg-white/10 ring-1 ring-white/10 transition-colors peer-checked:bg-[var(--accent)]" />
+                    <div className="absolute left-1 top-1 h-3 w-3 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+                  </label>
+                  <span>Admin</span>
+                </div>
+              )}
 
               <button
                 className={`rounded-full border px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeAddress
@@ -1508,60 +1512,65 @@ export default function Home() {
 
                           <div className="mt-5 pt-5 border-t border-white/5">
                             {slot.teamEntry ? (
-                              <div className="space-y-3">
-                                <div className="text-[9px] uppercase font-bold tracking-widest text-[var(--muted)]">Selected Horses</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {slot.teamEntry.assetIds.map((assetId) => (
-                                    <span
-                                      key={`slot-${slot.slotIndex}-asset-chip-${assetId}`}
-                                      className="rounded-full border border-white/15 bg-black/40 px-2 py-1 text-[9px] font-mono text-white/90"
-                                    >
-                                      #{assetId}
-                                    </span>
-                                  ))}
-                                </div>
-                                <div className="grid grid-cols-5 gap-2">
-                                  {slot.teamEntry.assetIds.map((assetId, i) => {
-                                    const horse = slot.teamEntry.horses.find(
-                                      (candidate) => candidate.assetId === assetId
-                                    );
-
-                                    if (!horse) {
-                                      return (
-                                        <div
-                                          key={`slot-${slot.slotIndex}-asset-fallback-${assetId}-${i}`}
-                                          className="aspect-square rounded-lg border border-white/10 bg-black/40 ring-1 ring-white/5 shadow-inner flex flex-col items-center justify-center px-1"
-                                          title={`Asset #${assetId}`}
+                              (() => {
+                                const teamEntry = slot.teamEntry;
+                                return (
+                                  <div className="space-y-3">
+                                    <div className="text-[9px] uppercase font-bold tracking-widest text-[var(--muted)]">Selected Horses</div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {teamEntry.assetIds.map((assetId) => (
+                                        <span
+                                          key={`slot-${slot.slotIndex}-asset-chip-${assetId}`}
+                                          className="rounded-full border border-white/15 bg-black/40 px-2 py-1 text-[9px] font-mono text-white/90"
                                         >
-                                          <span className="text-[7px] uppercase tracking-widest text-[var(--muted)]">
-                                            Asset
-                                          </span>
-                                          <span className="mt-1 text-[9px] font-mono text-white/80">
-                                            #{assetId}
-                                          </span>
-                                        </div>
-                                      );
-                                    }
+                                          #{assetId}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <div className="grid grid-cols-5 gap-2">
+                                      {teamEntry.assetIds.map((assetId, i) => {
+                                        const horse = teamEntry.horses.find(
+                                          (candidate) => candidate.assetId === assetId
+                                        );
 
-                                    return (
-                                      <div
-                                        key={`slot-${slot.slotIndex}-asset-${assetId}-${i}`}
-                                        className="aspect-square rounded-lg border border-white/10 bg-black/40 overflow-hidden ring-1 ring-white/5 shadow-inner group/horse relative"
-                                        title={`${horse.name} (#${assetId})`}
-                                      >
-                                        <Image
-                                          src={horse.imageUrl}
-                                          alt={horse.name}
-                                          fill
-                                          sizes="40px"
-                                          className="object-cover transition-transform group-hover/horse:scale-110"
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover/horse:bg-black/20 transition-colors" />
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
+                                        if (!horse) {
+                                          return (
+                                            <div
+                                              key={`slot-${slot.slotIndex}-asset-fallback-${assetId}-${i}`}
+                                              className="aspect-square rounded-lg border border-white/10 bg-black/40 ring-1 ring-white/5 shadow-inner flex flex-col items-center justify-center px-1"
+                                              title={`Asset #${assetId}`}
+                                            >
+                                              <span className="text-[7px] uppercase tracking-widest text-[var(--muted)]">
+                                                Asset
+                                              </span>
+                                              <span className="mt-1 text-[9px] font-mono text-white/80">
+                                                #{assetId}
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+
+                                        return (
+                                          <div
+                                            key={`slot-${slot.slotIndex}-asset-${assetId}-${i}`}
+                                            className="aspect-square rounded-lg border border-white/10 bg-black/40 overflow-hidden ring-1 ring-white/5 shadow-inner group/horse relative"
+                                            title={`${horse.name} (#${assetId})`}
+                                          >
+                                            <Image
+                                              src={horse.imageUrl}
+                                              alt={horse.name}
+                                              fill
+                                              sizes="40px"
+                                              className="object-cover transition-transform group-hover/horse:scale-110"
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover/horse:bg-black/20 transition-colors" />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })()
                             ) : (
                               <div className="grid grid-cols-5 gap-2 opacity-20">
                                 {[...Array(5)].map((_, i) => (
@@ -1733,12 +1742,14 @@ export default function Home() {
         <p className="text-sm text-[var(--muted)]">
           © 2026 StupidHorse Racing. Move fast and break legs.
         </p>
-        <button
-          onClick={() => setIsAdmin(!isAdmin)}
-          className="mt-4 text-[10px] uppercase tracking-widest text-white/10 hover:text-[var(--accent)] transition-colors"
-        >
-          [Admin Mode: {isAdmin ? "Enabled" : "Disabled"}]
-        </button>
+        {canUseAdminMode && (
+          <button
+            onClick={() => setIsAdmin(!isAdmin)}
+            className="mt-4 text-[10px] uppercase tracking-widest text-white/10 hover:text-[var(--accent)] transition-colors"
+          >
+            [Admin Mode: {isAdmin ? "Enabled" : "Disabled"}]
+          </button>
+        )}
       </footer>
     </main>
   );
