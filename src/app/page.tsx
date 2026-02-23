@@ -480,6 +480,7 @@ export default function Home() {
 
         const profileData = (await profilesRes.json()) as {
           profiles: HorseProfile[];
+          persistenceConfigured?: boolean;
         };
 
         const byId: Record<number, HorseProfile> = {};
@@ -487,6 +488,10 @@ export default function Home() {
           byId[profile.asset_id] = profile;
         });
         setProfiles(byId);
+
+        if (profileData.persistenceConfigured === false) {
+          console.info("[Profiles] Supabase not configured; profile persistence disabled.");
+        }
 
         const teamRes = await fetch(
           `/api/team-entry?address=${stableAddress}&${seasonQuery}`

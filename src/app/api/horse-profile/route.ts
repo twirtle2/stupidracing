@@ -46,18 +46,19 @@ export async function GET(req: Request) {
   if (!isValidAddress(address)) {
     return NextResponse.json({ error: "Invalid address" }, { status: 400 });
   }
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Horse profile persistence is not configured" },
-      { status: 503 }
-    );
-  }
-
   let season: number;
   try {
     season = parseSeason(searchParams.get("season"));
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+  }
+
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({
+      profiles: [],
+      resolvedSeason: season,
+      persistenceConfigured: false,
+    });
   }
 
   try {
@@ -69,6 +70,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       profiles: rows.map(profileFromRow),
       resolvedSeason: season,
+      persistenceConfigured: true,
     });
   } catch (error) {
     return NextResponse.json(
